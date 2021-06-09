@@ -1,4 +1,5 @@
 from vlc import Instance
+import configparser
 import vlc
 import sacn
 import time
@@ -52,6 +53,9 @@ class Server:
           self.player.play()
         else:
           print("Stopping Player")
+          # self.media = self.vlc_instance.media_new("/home/pi/python/blacksmall.png")
+          # self.player.set_media(self.media)
+          # self.player.play()
           self.player.stop()
       self.CH1Last = self.CH1Current
       self.CH2Last = self.CH2Current
@@ -70,10 +74,10 @@ class Server:
 
   # def videoFinished(self, a):
   #   if (self.data[self.address] < 85):
-  #     print("TODO: Stop Video")
       
 #Programmaufruf
 def main():
+  os.system("tvservice -p")
   server = Server()
   
 
