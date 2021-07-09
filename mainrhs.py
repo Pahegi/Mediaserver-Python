@@ -11,6 +11,7 @@ import os
 # CH1: Selection of Video (0 Stop, 1-255 Play Files)
 # CH2: Selection of Folder (0-255)
 # CH3: Selection of Playmode (0-127 Non-Loop, 128-255 Loop)
+# CH4: Selection of Videosource (0-127 PGM, 128-255 Cam)
 ##############################################################
 
 
@@ -41,8 +42,6 @@ class Server:
 
     self.vlc_instance = vlc.Instance()                  #VLC Instance
     self.player = self.vlc_instance.media_player_new()
-    # self.events = self.player.event_manager()
-    # self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.videoFinished)
 
     #Define DMX Packet Callback
     @self.receiver.listen_on('universe', universe=1)    # listens on universe 1
@@ -66,9 +65,6 @@ class Server:
           self.player.play()
         else:
           print("Stopping Player")
-          # self.media = self.vlc_instance.media_new("/home/pi/python/blacksmall.png")
-          # self.player.set_media(self.media)
-          # self.player.play()
           self.player.stop()
       self.CH1Last = self.CH1Current
       self.CH2Last = self.CH2Current
@@ -96,10 +92,7 @@ class Server:
       print('[{3}:{4}:{5}]\tError no USB Device Found'.format(*time.localtime(time.time())))
 
     self.usb = os.listdir("/media/pi/")[0]
-
-  # def videoFinished(self, a):
-  #   if (self.data[self.address] < 85):
-      
+     
 #Programmaufruf
 def main():
   os.system("tvservice -p")
