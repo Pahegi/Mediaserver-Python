@@ -19,27 +19,25 @@ class Server:
     self.CH1Current = 0                                 
     self.CH1Last = 0                                    
     self.CH2Current = 0                                 
-    self.CH2Last = 0
-    self.CH4Current = 0                                 
-    self.CH4Last = 0                                  
+    self.CH2Last = 0                                
     self.address = 1                                    #DMX Start Adress
-    self.usb = None                                     #Name of USB Stick
-    self.findStick()                                    #Method to search for Stick
+    self.universe = 1                                   #DMX Universe
     self.receiver = sacn.sACNreceiver()                 #sACN Receiver
     self.data = 0;
 
     config = configparser.ConfigParser()
-    if len(os.listdir("/media/pi/")) == 0:
-        self.findStick()
-    config.read("/media/pi/" + self.usb + "/config.txt")
-    adress = config.get("DMX-Konfiguration", "Adresse")
-    print("Loaded adress", adress, " from configfile")
+    config.read("/home/pi/config.txt")
+    self.address = config.getint("DMX-Konfiguration", "Adresse")
+    # self.address = int(config.get("DMX-Konfiguration", "Adresse"))
+    self.universe = int(config.get("DMX-Konfiguration", "Universum"))
+    print("Loaded adress", self.address, "and universe", self.universe, " from configfile")
 
     self.vlc_instance = vlc.Instance()                  #VLC Instance
     self.player = self.vlc_instance.media_player_new()
 
+    print("Universe is ", self.universe)
     #Define DMX Packet Callback
-    @self.receiver.listen_on('universe', universe=1)    # listens on universe 1
+    @self.receiver.listen_on('universe', universe=self.universe)    # listens on universe 1
     def callback(packet):  # packet type: sacn.DataPacket
       self.data = packet.dmxData
 
@@ -47,11 +45,17 @@ class Server:
       self.CH1Current = self.data[self.address-1]
       self.CH2Current = self.data[self.address]
       if ((self.CH1Current != self.CH1Last) or (self.CH2Current != self.CH2Last)): #Bei Änderung von DMX Werten
-        #Abfrage auf Stick
-        if len(os.listdir("/media/pi/")) == 0:
-          self.findStick()
         if (self.CH1Current > 0):
-          playpath = "/media/pi/" + self.usb + "/" + str(self.CH2Current).zfill(3) + "/" + str(self.CH1Current).zfill(3) + ".mp4"
+          folderlist = sorted(os.listdir("/home/pi/media"))
+          print(folderlist)
+          folder = folderlist[self.CH2Current]
+          print(folder)
+          filelist = sorted(os.listdir("/home/pi/media" + "/" + folder))
+          print("/home/pi/media" + "/" + folder)
+          print(filelist)
+          file = filelist[self.CH1Current-1]
+          print(file)
+          playpath = ("/home/pi/media/" + folder + "/" + file)
           print("Playing new Media: " + playpath)
           self.media = self.vlc_instance.media_new(playpath)
           self.player.set_media(self.media)
@@ -65,15 +69,6 @@ class Server:
       self.CH2Last = self.CH2Current
     self.receiver.start()  # start the receiving thread
     self.receiver.join_multicast(1)
-    
-   
-  #USB-Stick Such-Schleife
-  def findStick(self):
-    while len(os.listdir("/media/pi/")) == 0:
-      time.sleep(2)
-      print('[{3}:{4}:{5}]\tError no USB Device Found'.format(*time.localtime(time.time())))
-
-    self.usb = os.listdir("/media/pi/")[0]
      
 #Programmaufruf
 def main():
