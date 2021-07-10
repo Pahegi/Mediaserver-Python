@@ -24,18 +24,17 @@ class Server:
     self.universe = 1                                   #DMX Universe
     self.receiver = sacn.sACNreceiver()                 #sACN Receiver
     self.data = 0;
+    mediapath = "/home/pi/media/"                       #Path of Media Folders and Files
 
     config = configparser.ConfigParser()
     config.read("/home/pi/config.txt")
     self.address = config.getint("DMX-Konfiguration", "Adresse")
-    # self.address = int(config.get("DMX-Konfiguration", "Adresse"))
-    self.universe = int(config.get("DMX-Konfiguration", "Universum"))
+    self.universe = config.getint("DMX-Konfiguration", "Universum")
     print("Loaded adress", self.address, "and universe", self.universe, " from configfile")
 
     self.vlc_instance = vlc.Instance()                  #VLC Instance
     self.player = self.vlc_instance.media_player_new()
 
-    print("Universe is ", self.universe)
     #Define DMX Packet Callback
     @self.receiver.listen_on('universe', universe=self.universe)    # listens on universe 1
     def callback(packet):  # packet type: sacn.DataPacket
@@ -46,20 +45,16 @@ class Server:
       self.CH2Current = self.data[self.address]
       if ((self.CH1Current != self.CH1Last) or (self.CH2Current != self.CH2Last)): #Bei Änderung von DMX Werten
         if (self.CH1Current > 0):
-          folderlist = sorted(os.listdir("/home/pi/media"))
-          print(folderlist)
+          #Dateisortierung und Auswahl
+          folderlist = sorted(os.listdir(mediapath))
           folder = folderlist[self.CH2Current]
-          print(folder)
-          filelist = sorted(os.listdir("/home/pi/media" + "/" + folder))
-          print("/home/pi/media" + "/" + folder)
-          print(filelist)
+          filelist = sorted(os.listdir(mediapath + "/" + folder))
           file = filelist[self.CH1Current-1]
-          print(file)
-          playpath = ("/home/pi/media/" + folder + "/" + file)
-          print("Playing new Media: " + playpath)
+          playpath = (mediapath + folder + "/" + file)
+          #Wiedergabe
           self.media = self.vlc_instance.media_new(playpath)
           self.player.set_media(self.media)
-          print("Turning Loop " + ("On" if (self.data[self.address+1] > 127) else "Off"))
+          print("Playing new Media with Loop " + ("on: " if (self.data[self.address+1] > 127) else "off: " + playpath))
           self.media.add_option("input-repeat=" + str(10000 if (self.data[self.address+1] > 127) else 0))
           self.player.play()
         else:
