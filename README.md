@@ -74,8 +74,8 @@ This is a simple python-based E1.31 (sACN) controllable mediaserver running on a
 - Put script into autorun:
   - crontab -e
   - Select 1 (Nano)
-  - Rocky Horror Show: Add Line "@reboot sleep 10 && python3 /home/pi/mainrhs.py" hinzufügen (Delay, weil sonst Skript nicht startet)
-  - Jekyll and Hyde: Add Line "@reboot sleep 10 && python3 /home/pi/Mediaserver-Python/mainjekyll.py" hinzufügen
+  - Rocky Horror Show: Add Line "@reboot sleep 10 && python3 /home/pi/mainrhs.py"
+  - Jekyll and Hyde: Add Line "@reboot sleep 10 && python3 /home/pi/Mediaserver-Python/mainjekyll.py" 
 - Disable screensaver
     - "sudo apt install xscreensaver"
     - Connect via VNC:
