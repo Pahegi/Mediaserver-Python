@@ -69,10 +69,9 @@
     - "sudo apt install xscreensaver"
     - https://www.elektronik-kompendium.de/sites/raspberry-pi/2107011.htm
 - Github
-   - cd /home/pi
+  - cd /home/pi
   - git clone https://github.com/Pahegi/Mediaserver-Python.git
-  - TODOTODOTODOTO Doku unvollständig
 - Skript in Autorun:
   - crontab -e
-  - TODOTODOTODOTO Doku unvollständig
-  - @reboot sleep 10 && python3 /home/pi/mainrhs.py (Delay, weil sonst Skript nicht startet)
+  - Rocky Horror Show: "@reboot sleep 10 && python3 /home/pi/mainrhs.py" hinzufügen (Delay, weil sonst Skript nicht startet)
+  - Jekyll and Hyde: "@reboot sleep 10 && python3 /home/pi/Mediaserver-Python/mainjekyll.py" hinzufügen
