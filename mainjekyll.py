@@ -47,16 +47,18 @@ class Server:
         if (self.CH1Current > 0):
           #Dateisortierung und Auswahl
           folderlist = sorted(os.listdir(mediapath))
-          folder = folderlist[self.CH2Current]
-          filelist = sorted(os.listdir(mediapath + "/" + folder))
-          file = filelist[self.CH1Current-1]
-          playpath = (mediapath + folder + "/" + file)
-          #Wiedergabe
-          self.media = self.vlc_instance.media_new(playpath)
-          self.player.set_media(self.media)
-          print("Playing new Media with Loop " + ("on: " if (self.data[self.address+1] > 127) else "off: " + playpath))
-          self.media.add_option("input-repeat=" + str(10000 if (self.data[self.address+1] > 127) else 0))
-          self.player.play()
+          if (len(folderlist) >= self.CH2Current):
+            folder = folderlist[self.CH2Current]
+            filelist = sorted(os.listdir(mediapath + "/" + folder))
+            if (len(filelist) >= self.CH1Current):
+              file = filelist[self.CH1Current-1]
+              playpath = (mediapath + folder + "/" + file)
+              #Wiedergabe
+              self.media = self.vlc_instance.media_new(playpath)
+              self.player.set_media(self.media)
+              print("Playing new Media with Loop " + ("on: " if (self.data[self.address+1] > 127) else "off: " + playpath))
+              self.media.add_option("input-repeat=" + str(10000 if (self.data[self.address+1] > 127) else 0))
+              self.player.play()
         else:
           print("Stopping Player")
           self.player.stop()
