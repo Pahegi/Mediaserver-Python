@@ -20,7 +20,7 @@ class Server:
     self.loadConfig(self.configpath)
 
   #start()
-  #starts Mediaserver
+  #Starts Mediaserver and initializes Callback-Method for incoming DMX-Frames
   def start(self):
     #DMX Packet Callback
     @self.receiver.listen_on('universe', universe=self.dmx.universe)
@@ -40,8 +40,8 @@ class Server:
     self.receiver.start()
     self.receiver.join_multicast(1)
 
-  #loadConfig()
-  #loads configfile and sets dmx values
+  #loadConfig(String)
+  #Loads configfile from path and sets dmx values
   def loadConfig(self, configpath):
     try:
       config = configparser.ConfigParser()
@@ -55,8 +55,8 @@ class Server:
       print("Couldn't find config.txt, loaded adress", self.dmx.toString())
       return
 
-  #getPlaypath(mediapath, channellist)
-  #calculates path of media file based on base-path and DMX-values
+  #getPlaypath(String, Channellist)
+  #Calculates path of media file based on base-path and DMX-values
   def getPlaypath(self, mediapath, channellist):
     folderlist = sorted(os.listdir(mediapath))
     if (len(folderlist)-1 >= self.channellist.get(1)):
@@ -74,14 +74,14 @@ class Server:
 class Channel:
   def __init__ (self, address):
     self.current = -1
-    self.last = -1
     self.new = True
     self.address = address
 
+  #update()
+  #Updates value of channel with packet and sets new flag
   def update(self, packet):
     value = packet.dmxData[self.address - 1]
     if (self.current != value):
-      self.last = self.current
       self.current = value
       self.new = True
     else:
@@ -98,13 +98,19 @@ class Channellist:
   def __init__ (self, address):
     self.channel = [Channel(i+address) for i in range(3)]
 
+  #update(packet)
+  #Updates values of all channels with packet
   def update(self, packet):
     for i in range(3):
       self.channel[i].update(packet)
 
+  #isNew(Int)
+  #Returns True, if channel at address+offset received a new value in last DMX-Frame
   def isNew(self, offset):
     return self.channel[offset].isNew()
 
+  #get(Int)
+  #Returns value of DMX-Channel at address+offset
   def get(self, offset):
     return self.channel[offset].current
 
@@ -116,6 +122,8 @@ class DMX:
     self.address = 1
     self.universe = 1
   
+  #toString()
+  #Returns simple representation of universe and address
   def toString(self):
     return (str(self.universe) + "." + str(self.address))
 
@@ -129,6 +137,8 @@ class VLC:
     self.loop = False
     self.playpath = ""
 
+  #setMedia(String)
+  #Sets media to play from a path String
   def setMedia(self, playpath):
     try:
       if (playpath != ""):
@@ -138,15 +148,21 @@ class VLC:
     except Exception as e:
             print(traceback.format_exc())
 
+  #setLoop(Boolean)
+  #Sets state of loop at media
   def setLoop(self, loop):
     if (self.playpath != ""):
       self.media.add_option("input-repeat=" + str(10000 if loop else 0))
-    
+  
+  #play()
+  #Starts playing media from configured path
   def play(self):
     if (self.playpath != ""):
       print("Starting Media '" + self.playpath + "' with Loop", "on" if self.loop else "off")
       self.player.play()
 
+  #stop()
+  #Stops media
   def stop(self):
     print("Stopping Media")
     self.player.stop()
