@@ -56,7 +56,7 @@ class Server:
               #Wiedergabe
               self.media = self.vlc_instance.media_new(playpath)
               self.player.set_media(self.media)
-              print("Playing new Media with Loop " + ("on: " if (self.data[self.address+1] > 127) else "off: " + playpath))
+              print("Playing new Media with Loop " + ("on: " if (self.data[self.address+1] > 127) else "off: ") + playpath)
               self.media.add_option("input-repeat=" + str(10000 if (self.data[self.address+1] > 127) else 0))
               self.player.play()
         else:
