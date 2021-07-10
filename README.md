@@ -35,6 +35,7 @@ This is a simple E1.31 (sACN) controllable mediaserver running on a Raspberry Pi
 ## Planned features
 - Webserver for configuration
 - Configuration of screen resolution in configfile (and webserver)
+- Update-routine
 
 ## Raspberry Pi configuration
 
