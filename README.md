@@ -72,8 +72,9 @@ This is a simple E1.31 (sACN) controllable mediaserver running on a Raspberry Pi
   - git clone https://github.com/Pahegi/Mediaserver-Python.git
 - Put script into autorun:
   - crontab -e
-  - Rocky Horror Show: "@reboot sleep 10 && python3 /home/pi/mainrhs.py" hinzufügen (Delay, weil sonst Skript nicht startet)
-  - Jekyll and Hyde: "@reboot sleep 10 && python3 /home/pi/Mediaserver-Python/mainjekyll.py" hinzufügen
+  - Select 1 (Nano)
+  - Rocky Horror Show: Add Line "@reboot sleep 10 && python3 /home/pi/mainrhs.py" hinzufügen (Delay, weil sonst Skript nicht startet)
+  - Jekyll and Hyde: Add Line "@reboot sleep 10 && python3 /home/pi/Mediaserver-Python/mainjekyll.py" hinzufügen
 - Disable screensaver
     - "sudo apt install xscreensaver"
     - Connect via VNC:
