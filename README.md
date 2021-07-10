@@ -56,7 +56,7 @@
     - Schwarzer Hintergrund: Layout “No image” und “Colour” schwarz
 - SSH
   - “sudo nano /etc/lightdm/lightdm.conf”
-    - In erster Sektion “xserver-command = X -nocursor” hinzufügen
+    - In Seat-Sektion “xserver-command = X -nocursor” hinzufügen
   - “sudo nano .bashrc”
     - Add “alias python=’python3’”
   - Install Requirements
