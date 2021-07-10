@@ -16,6 +16,8 @@
     - CH2: Selection of Folder (0-255)
     - CH3: Selection of Playmode (0-127 Non-Loop, 128-255 Loop)
   - Interne Speicherung von Configfile und Videos
+    - Content: "/home/pi/media/"
+    - Config: "/home/pi/config.txt"
   - Jedes von VLC unterstütze Dateiformat möglich
   - Dateibenennung frei, Mapping auf DMX geschieht über alphabetische Sortierung
 
