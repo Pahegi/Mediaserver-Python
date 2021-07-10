@@ -66,6 +66,8 @@
 - Github
    - cd /home/pi
   - git clone https://github.com/Pahegi/Mediaserver-Python.git
+  - TODOTODOTODOTO Doku unvollständig
 - Skript in Autorun:
   - crontab -e
+  - TODOTODOTODOTO Doku unvollständig
   - @reboot sleep 10 && python3 /home/pi/mainrhs.py (Delay, weil sonst Skript nicht startet)
