@@ -1,6 +1,6 @@
 # E1.31 (sACN) Mediaserver
 
-This is a simple E1.31 (sACN) controllable mediaserver running on a Raspberry Pi.
+This is a simple python-based E1.31 (sACN) controllable mediaserver running on a Raspberry Pi.
 
 ## Versions (project-specific)
 - Rocky Horror Show (mainrhs.py)
@@ -12,7 +12,7 @@ This is a simple E1.31 (sACN) controllable mediaserver running on a Raspberry Pi
     - CH4: Selection of Videosource (0-127 PGM, 128-255 Cam)
   - Mediafiles and configfile on external USB-Stick
   - *.mp4 only
-  - Fixed mapping of DMX values to foldernames (000-255) and filenames (001.mp4-225.mp4)
+  - Fixed mapping of DMX values to foldernames (000-255) and filenames (001.mp4-255.mp4)
 - Jekyll and Hyde (mainjekyll.py)
   - 3 Channels
     - CH1: Selection of Video (0 Stop, 1-255 Play Files)
@@ -26,7 +26,6 @@ This is a simple E1.31 (sACN) controllable mediaserver running on a Raspberry Pi
     - Mapping of DMX values to alphabetically sorted foldernames and filenames
 
 ## Known bugs
-- Running video freezes when selecting a non-existing file
 - Loop only runs 10000 times
 - Loop-state only gets set when selecting a new mediafile to play
 - at the start of the loop some video-frames get dropped
@@ -36,6 +35,7 @@ This is a simple E1.31 (sACN) controllable mediaserver running on a Raspberry Pi
 - Webserver for configuration
 - Configuration of screen resolution in configfile (and webserver)
 - Update-routine
+- WiFi Support
 
 ## Raspberry Pi configuration
 
