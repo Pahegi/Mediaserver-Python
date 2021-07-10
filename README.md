@@ -19,6 +19,16 @@
   - Jedes von VLC unterstütze Dateiformat möglich
   - Dateibenennung frei, Mapping auf DMX geschieht über alphabetische Sortierung
 
+## Bekannte Fehler
+- Laufendes Video friert ein bei Auswahl von nicht existenter Datei
+- Loop läuft nur 10000 mal
+- Loop-Status wird nur bei Medienstart gesetzt
+- Bei Loop Neustart werden Frames am Anfang gedroppt
+- Videos unter 1sek werden teils unvollständig abgespielt
+
+## Anstehende Features
+- Webserver für Konfiguration
+
 ## Raspberry Pi Einrichtung
 
 - Betriebssystem flashen
