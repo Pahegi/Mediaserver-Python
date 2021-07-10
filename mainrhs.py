@@ -37,8 +37,8 @@ class Server:
     if len(os.listdir("/media/pi/")) == 0:
         self.findStick()
     config.read("/media/pi/" + self.usb + "/config.txt")
-    adress = config.get("DMX-Konfiguration", "Adresse")
-    print("Loaded adress", adress, " from configfile")
+    self.address = config.get("DMX-Konfiguration", "Adresse")
+    print("Loaded adress", self.address, " from configfile")
 
     self.vlc_instance = vlc.Instance()                  #VLC Instance
     self.player = self.vlc_instance.media_player_new()
