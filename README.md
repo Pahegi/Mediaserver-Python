@@ -1,78 +1,80 @@
-# Medienserver Doku
+# E1.31 (sACN) Mediaserver
 
-## Vorhandene Versionen
-- Rocky Horror Show
-  - 4 Kanäle
+This is a simple E1.31 (sACN) controllable mediaserver running on a Raspberry Pi.
+
+## Versions (project-specific)
+- Rocky Horror Show (mainrhs.py)
+  - Includes control of two relais for composite video switching
+  - 4 Channels
     - CH1: Selection of Video (0 Stop, 1-255 Play Files)
     - CH2: Selection of Folder (0-255)
     - CH3: Selection of Playmode (0-127 Non-Loop, 128-255 Loop)
     - CH4: Selection of Videosource (0-127 PGM, 128-255 Cam)
-  - Externe Speicherung von Configfile und Videos auf Stick
-  - Nur *.mp4
-  - Festgelegte Benennung von Ordnern (000-255) und Dateien (001.mp4-255.mp4)
-- Jekyll and Hyde
-  - 3 Kanäle
+  - Mediafiles and configfile on external USB-Stick
+  - *.mp4 only
+  - Fixed mapping of DMX values to foldernames (000-255) and filenames (001.mp4-225.mp4)
+- Jekyll and Hyde (mainjekyll.py)
+  - 3 Channels
     - CH1: Selection of Video (0 Stop, 1-255 Play Files)
     - CH2: Selection of Folder (0-255)
     - CH3: Selection of Playmode (0-127 Non-Loop, 128-255 Loop)
-  - Interne Speicherung von Configfile und Videos
-    - Content: "/home/pi/media/"
+  - Internal storage of mediafiles and configfile
+    - Media: "/home/pi/media/"
     - Config: "/home/pi/config.txt"
-  - Jedes von VLC unterstütze Dateiformat möglich
-  - Dateibenennung frei, Mapping auf DMX geschieht über alphabetische Sortierung
+  - Supports every format supported by VLC-Media-Player
+  - No fixed mapping of DMX values to foldernames
+    - Mapping of DMX values to alphabetically sorted foldernames and filenames
 
-## Bekannte Fehler
-- Laufendes Video friert ein bei Auswahl von nicht existenter Datei
-- Loop läuft nur 10000 mal
-- Loop-Status wird nur bei Medienstart gesetzt
-- Bei Loop Neustart werden Frames am Anfang gedroppt
-- Videos unter 1sek werden teils unvollständig abgespielt
+## Known bugs
+- Running video freezes when selecting a non-existing file
+- Loop only runs 10000 times
+- Loop-state only gets set when selecting a new mediafile to play
+- at the start of the loop some video-frames get dropped
+- Videos under one second sometimes only get played partially
 
-## Anstehende Features
-- Webserver für Konfiguration
+## Planned features
+- Webserver for configuration
+- Configuration of screen resolution in configfile (and webserver)
 
-## Raspberry Pi Einrichtung
+## Raspberry Pi configuration
 
-- Betriebssystem flashen
+- Flashing OS
   - Raspberry Pi OS with desktop
   - Kernel version: 5.10
-- Datei “ssh” auf SD Karte root erstellen
-- Login per SSH mit “pi”, “raspberry”
-- “sudo raspi-config”
-  - System Options → Password, 12345678
-  - Display Options → Disable Screen Blanking
-  - Interface Options → Enable VNC
-  - Advanced Options → Expand Filesystem
-- Reboot
-- Update
+- Create file "ssh" on sd card root-folder
+- Login via ssh with credentials "pi", "raspberry"
+  - "sudo raspi-config"
+    - System Options → Password, 12345678
+    - Display Options → Disable Screen Blanking
+    - Interface Options → Enable VNC
+    - Advanced Options → Expand Filesystem
   - “sudo apt update”
   - “sudo apt upgrade”
-- Desktop aufräumen per VNC Verbindung
-  - Schnellkonfiguration durchlaufen
-  - Panel Settings (In Taskleiste)
-    - Advanced → Minimise panel when not in use, 0px höhe
-  - Preferences (In Startmenü)
-    - Add/Remove Software, “Battery” suchen, “Battery monitor plugin for lxpanel” deaktivieren
-  - Rechtsklick auf Desktop, Einstellungen
+  - "sudo reboot now"
+- Connect via VNC to pi
+  - Panel Settings (In task-bar)
+    - Advanced → Minimise panel when not in use, 0px height
+  - Preferences (In start-menu)
+    - Add/Remove Software, search "Battery", deactivate "Battery monitor plugin for lxpanel"
+  - Right click on desktop, preferences
     - uncheck Mounted Disks und Trashcan
-    - Schwarzer Hintergrund: Layout “No image” und “Colour” schwarz
-- SSH
-  - “sudo nano /etc/lightdm/lightdm.conf”
-    - In Seat-Sektion “xserver-command = X -nocursor” hinzufügen
-  - “sudo nano .bashrc”
-    - Add “alias python=’python3’”
-  - Install Requirements
-    - “pip3 install pyusb”
-    - “pip3 install python-vlc”
-    - “pip3 install sacn”
-  - Screensaver deaktiveren
-    - "sudo apt install xscreensaver"
-    - per VNC:
-      - Startmenü, Einstellungen, Screensaver, Disable Screensaver
-- Github
+    - Choose layout "No image" and "Color" black
+- Connect via SSH
+  - "sudo nano /etc/lightdm/lightdm.conf"
+    - In Seat-section add line "xserver-command = X -nocursor"
+  - "sudo nano .bashrc"
+    - Add "alias python=’python3’"
+  - Install requirements
+    - "pip3 install pyusb"
+    - "pip3 install python-vlc"
+    - "pip3 install sacn"
   - cd /home/pi
   - git clone https://github.com/Pahegi/Mediaserver-Python.git
-- Skript in Autorun:
+- Put script into autorun:
   - crontab -e
   - Rocky Horror Show: "@reboot sleep 10 && python3 /home/pi/mainrhs.py" hinzufügen (Delay, weil sonst Skript nicht startet)
   - Jekyll and Hyde: "@reboot sleep 10 && python3 /home/pi/Mediaserver-Python/mainjekyll.py" hinzufügen
+- Disable screensaver
+    - "sudo apt install xscreensaver"
+    - Connect via VNC:
+      - startmenu, settings, screensaver, disable screensaver
