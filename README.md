@@ -67,7 +67,8 @@
     - “pip3 install sacn”
   - Screensaver deaktiveren
     - "sudo apt install xscreensaver"
-    - https://www.elektronik-kompendium.de/sites/raspberry-pi/2107011.htm
+    - per VNC:
+      - Startmenü, Einstellungen, Screensaver, Disable Screensaver
 - Github
   - cd /home/pi
   - git clone https://github.com/Pahegi/Mediaserver-Python.git
