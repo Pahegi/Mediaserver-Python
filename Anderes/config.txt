@@ -1,0 +1,3 @@
+[DMX-Konfiguration]
+Adresse = 1
+Universum = 1
