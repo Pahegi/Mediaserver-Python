@@ -63,6 +63,9 @@
     - “pip3 install pyusb”
     - “pip3 install python-vlc”
     - “pip3 install sacn”
+  - Screensaver deaktiveren
+    - "sudo apt install xscreensaver"
+    - https://www.elektronik-kompendium.de/sites/raspberry-pi/2107011.htm
 - Github
    - cd /home/pi
   - git clone https://github.com/Pahegi/Mediaserver-Python.git
