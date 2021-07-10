@@ -65,17 +65,18 @@ class Server:
                 print("Playing new Media with Loop " + ("on: " if (self.data[self.address+1] > 127) else "off: ") + playpath)
                 self.media.add_option("input-repeat=" + str(10000 if (self.data[self.address+1] > 127) else 0))
                 self.player.play()
-            else:
-              print("Stopping Player")
-              self.player.stop()
           except Exception as e:
             print(traceback.format_exc())
+        else:
+          print("Stopping Player")
+          self.player.stop()
+          
       self.CH1Last = self.CH1Current
       self.CH2Last = self.CH2Current
     self.receiver.start()  # start the receiving thread
     self.receiver.join_multicast(1)
-     
-  
+
+
 def main():
   os.system("tvservice -p")
   server = Server()
