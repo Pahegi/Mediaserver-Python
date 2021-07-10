@@ -5,10 +5,12 @@
   - 4 Kanäle --> Ansteuerung von externen Relais für Analogvideo-Umschaltung
   - Externe Speicherung von Configfile und Videos auf Stick
   - Nur *.mp4
+  - Festgelegte Benennung von Ordnern (000-255) und Dateien (001.mp4-255.mp4)
 - Jekyll and Hyde
   - Work in Progress
   - Interne Speicherung von Configfile und Videos
-  - Nur *.jpeg
+  - Jedes von VLC unterstütze Dateiformat möglich
+  - Dateibenennung frei, Mapping auf DMX geschieht über alphabetische Sortierung
 
 ## Raspberry Pi Einrichtung
 
