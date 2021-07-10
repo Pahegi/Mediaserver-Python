@@ -2,12 +2,19 @@
 
 ## Vorhandene Versionen
 - Rocky Horror Show
-  - 4 Kanäle --> Ansteuerung von externen Relais für Analogvideo-Umschaltung
+  - 4 Kanäle
+    - CH1: Selection of Video (0 Stop, 1-255 Play Files)
+    - CH2: Selection of Folder (0-255)
+    - CH3: Selection of Playmode (0-127 Non-Loop, 128-255 Loop)
+    - CH4: Selection of Videosource (0-127 PGM, 128-255 Cam)
   - Externe Speicherung von Configfile und Videos auf Stick
   - Nur *.mp4
   - Festgelegte Benennung von Ordnern (000-255) und Dateien (001.mp4-255.mp4)
 - Jekyll and Hyde
-  - Work in Progress
+  - 3 Kanäle
+    - CH1: Selection of Video (0 Stop, 1-255 Play Files)
+    - CH2: Selection of Folder (0-255)
+    - CH3: Selection of Playmode (0-127 Non-Loop, 128-255 Loop)
   - Interne Speicherung von Configfile und Videos
   - Jedes von VLC unterstütze Dateiformat möglich
   - Dateibenennung frei, Mapping auf DMX geschieht über alphabetische Sortierung
