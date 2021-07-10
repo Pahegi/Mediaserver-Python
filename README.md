@@ -47,22 +47,25 @@
   - “sudo apt upgrade”
 - Desktop aufräumen per VNC Verbindung
   - Schnellkonfiguration durchlaufen
-  - Panel Settings
-    - Advanced → Minimise panel when not in use, 0px
-  - Preferences
+  - Panel Settings (In Taskleiste)
+    - Advanced → Minimise panel when not in use, 0px höhe
+  - Preferences (In Startmenü)
     - Add/Remove Software, “Battery” suchen, “Battery monitor plugin for lxpanel” deaktivieren
-  - Rechtsklick auf Desktop
-    - uncheck Mounted Disks
+  - Rechtsklick auf Desktop, Einstellungen
+    - uncheck Mounted Disks und Trashcan
     - Schwarzer Hintergrund: Layout “No image” und “Colour” schwarz
 - SSH
   - “sudo nano /etc/lightdm/lightdm.conf”
-    - Add “xserver-command = X -nocursor”
+    - In Seat-Sektion “xserver-command = X -nocursor” hinzufügen
   - “sudo nano .bashrc”
     - Add “alias python=’python3’”
   - Install Requirements
     - “pip3 install pyusb”
     - “pip3 install python-vlc”
     - “pip3 install sacn”
+  - Screensaver deaktiveren
+    - "sudo apt install xscreensaver"
+    - https://www.elektronik-kompendium.de/sites/raspberry-pi/2107011.htm
 - Github
    - cd /home/pi
   - git clone https://github.com/Pahegi/Mediaserver-Python.git
