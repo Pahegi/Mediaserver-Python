@@ -1,3 +1,9 @@
+# Copyright (C) 2021 Paul Hermann - All Rights Reserved
+# You may use, distribute and modify this code under the
+# terms of the GPL-3.0 License.
+# https://github.com/Pahegi/Mediaserver-Python/blob/master/LICENSE
+
+
 from vlc import Instance
 import configparser
 import traceback
