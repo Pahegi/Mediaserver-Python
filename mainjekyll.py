@@ -44,7 +44,7 @@ class Server:
         else:
           self.vlc.stop()
     self.receiver.start()
-    self.receiver.join_multicast(1)
+    self.receiver.join_multicast(self.dmx.universe)
 
   #loadConfig(String)
   #Loads configfile from path and sets dmx values
