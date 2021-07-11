@@ -21,9 +21,9 @@ class Server:
     self.configpath = "/home/pi/config.txt"
     self.dmx = DMX()
     self.vlc = VLC()
+    self.loadConfig(self.configpath)
     self.channellist = Channellist(self.dmx.address)
     self.receiver = sacn.sACNreceiver()
-    self.loadConfig(self.configpath)
 
   #start()
   #Starts Mediaserver and initializes Callback-Method for incoming DMX-Frames
