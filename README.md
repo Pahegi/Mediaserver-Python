@@ -47,7 +47,7 @@ This is a simple python-based E1.31 (sACN) controllable mediaserver running on a
 - Create file "ssh" on sd card root-folder
 - Login via ssh with credentials "pi", "raspberry"
   - "sudo raspi-config"
-    - System Options → Password, 12345678
+    - System Options → Password, (choose Password)
     - Display Options → Disable Screen Blanking
     - Interface Options → Enable VNC
     - Advanced Options → Expand Filesystem
