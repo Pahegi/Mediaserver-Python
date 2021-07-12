@@ -36,6 +36,8 @@ This is a simple python-based E1.31 (sACN) controllable mediaserver running on a
 - Configuration of screen resolution in configfile (and webserver)
 - Update-routine
 - WiFi Support
+- CITP video stream
+- Network discovery service
 
 ## Raspberry Pi configuration
 
