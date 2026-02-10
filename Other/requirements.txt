@@ -1,3 +1,0 @@
-pyusb
-python-vlc
-sacn

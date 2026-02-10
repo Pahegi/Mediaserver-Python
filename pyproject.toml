@@ -1,0 +1,35 @@
+[project]
+name = "pi-medienserver"
+version = "3.5.0"
+description = "DMX/sACN-controlled media server for Raspberry Pi"
+authors = [
+    { name = "Paul Hermann" }
+]
+readme = "README.md"
+license = "GPL-3.0-only"
+requires-python = ">=3.9"
+dependencies = [
+    "python-mpv>=1.0",
+    "sacn>=1.9",
+]
+
+[project.scripts]
+mediaserver = "pi_mediaserver.main:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "pi_mediaserver", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+ruff = ">=0.4"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

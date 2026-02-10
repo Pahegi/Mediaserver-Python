@@ -1,0 +1,19 @@
+- [DONE] modify more parameters of video (contrast, saturation, gamma, scale, rotation, translation, speed) only if easily possible without performance issues
+  → Added as web-controlled parameters: contrast, saturation, gamma, speed, rotation, zoom, pan_x, pan_y
+  → Live sliders in "Video Effects" section of web UI
+  → All use native mpv properties — zero performance overhead
+
+- [RESEARCHED] research if ndi output of current video feed is possible
+  → NDI SDK is available for ARM/aarch64 Linux (Pi 5 compatible)
+  → However mpv has NO native NDI output — there is no NDI vo/output plugin
+  → Possible approaches (all non-trivial):
+    1. NDI SDK + framebuffer/DRM capture: read GPU output, encode to NDI via
+       libndi. Requires GPU readback + software encoding → high CPU load on Pi.
+    2. FFmpeg compiled with NDI support: pipe mpv output to ffmpeg NDI sender.
+       NDI SDK license restricts redistribution of FFmpeg+NDI builds.
+    3. HDMI capture card: external hardware captures HDMI output and feeds
+       it back as NDI via ndi-tools. Works but adds cost + latency.
+    4. DistroAV (OBS-NDI): requires running OBS Studio which is too heavy
+       for a headless Pi media server.
+  → Conclusion: NOT easily possible without significant performance impact
+    or additional hardware. Recommend HDMI-NDI converter box if NDI is needed.

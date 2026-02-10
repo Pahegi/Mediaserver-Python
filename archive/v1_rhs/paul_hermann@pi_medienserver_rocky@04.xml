@@ -1,0 +1,559 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<MA xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.malighting.de/grandma2/xml/MA" xsi:schemaLocation="http://schemas.malighting.de/grandma2/xml/MA http://schemas.malighting.de/grandma2/xml/3.9.60/MA.xsd" major_vers="3" minor_vers="9" stream_vers="60">
+	<Info datetime="2021-07-10T19:05:30" showfile="rocky horror show indoor" />
+	<FixtureType index="2" name="Pi Medienserver Rocky" mode="04">
+		<InfoItems>
+			<Info type="Invisible" date="2018-07-09T00:00:00">generator_software_name=&quot;MA Importer&quot;,generator_software_version=&quot;acc7bcc655ac97870d6ff2670143cf8f18b1a131&quot;</Info>
+		</InfoItems>
+		<short_name>Pi Medienserver RHS</short_name>
+		<manufacturer>Paul Hermann</manufacturer>
+		<short_manufacturer>Paul Hermann</short_manufacturer>
+		<Modules index="0">
+			<Module index="0" name="Main Module" class="None" beamtype="None" beam_angle="30" beam_intensity="10000">
+				<ChannelType index="0" attribute="MEDIASERVERINPUTDIRECTORY" feature="MEDIA" preset="GOBO" coarse="2" snap="true" mib_disable="true">
+					<ChannelFunction index="0" from="0" to="100" min_dmx_24="0" max_dmx_24="16777215" physfrom="0" physto="255" subattribute="MEDIASERVERINPUTDIRECTORYSELECT" subattribute_user_name="MediaServerInputDirectorySelect" attribute="MEDIASERVERINPUTDIRECTORY" attribute_user_name="MediaServerInputDirectory" feature="MEDIA" feature_user_name="Media" preset="GOBO" preset_user_name="Gobo">
+						<ChannelSet index="0" name="User folder 0" from_dmx="0" to_dmx="0" />
+						<ChannelSet index="1" name="User folder 1" from_dmx="1" to_dmx="1" />
+						<ChannelSet index="2" name="User folder 2" from_dmx="2" to_dmx="2" />
+						<ChannelSet index="3" name="User folder 3" from_dmx="3" to_dmx="3" />
+						<ChannelSet index="4" name="User folder 4" from_dmx="4" to_dmx="4" />
+						<ChannelSet index="5" name="User folder 5" from_dmx="5" to_dmx="5" />
+						<ChannelSet index="6" name="User folder 6" from_dmx="6" to_dmx="6" />
+						<ChannelSet index="7" name="User folder 7" from_dmx="7" to_dmx="7" />
+						<ChannelSet index="8" name="User folder 8" from_dmx="8" to_dmx="8" />
+						<ChannelSet index="9" name="User folder 9" from_dmx="9" to_dmx="9" />
+						<ChannelSet index="10" name="User folder 10" from_dmx="10" to_dmx="10" />
+						<ChannelSet index="11" name="User folder 11" from_dmx="11" to_dmx="11" />
+						<ChannelSet index="12" name="User folder 12" from_dmx="12" to_dmx="12" />
+						<ChannelSet index="13" name="User folder 13" from_dmx="13" to_dmx="13" />
+						<ChannelSet index="14" name="User folder 14" from_dmx="14" to_dmx="14" />
+						<ChannelSet index="15" name="User folder 15" from_dmx="15" to_dmx="15" />
+						<ChannelSet index="16" name="User folder 16" from_dmx="16" to_dmx="16" />
+						<ChannelSet index="17" name="User folder 17" from_dmx="17" to_dmx="17" />
+						<ChannelSet index="18" name="User folder 18" from_dmx="18" to_dmx="18" />
+						<ChannelSet index="19" name="User folder 19" from_dmx="19" to_dmx="19" />
+						<ChannelSet index="20" name="User folder 20" from_dmx="20" to_dmx="20" />
+						<ChannelSet index="21" name="User folder 21" from_dmx="21" to_dmx="21" />
+						<ChannelSet index="22" name="User folder 22" from_dmx="22" to_dmx="22" />
+						<ChannelSet index="23" name="User folder 23" from_dmx="23" to_dmx="23" />
+						<ChannelSet index="24" name="User folder 24" from_dmx="24" to_dmx="24" />
+						<ChannelSet index="25" name="User folder 25" from_dmx="25" to_dmx="25" />
+						<ChannelSet index="26" name="User folder 26" from_dmx="26" to_dmx="26" />
+						<ChannelSet index="27" name="User folder 27" from_dmx="27" to_dmx="27" />
+						<ChannelSet index="28" name="User folder 28" from_dmx="28" to_dmx="28" />
+						<ChannelSet index="29" name="User folder 29" from_dmx="29" to_dmx="29" />
+						<ChannelSet index="30" name="User folder 30" from_dmx="30" to_dmx="30" />
+						<ChannelSet index="31" name="User folder 31" from_dmx="31" to_dmx="31" />
+						<ChannelSet index="32" name="User folder 32" from_dmx="32" to_dmx="32" />
+						<ChannelSet index="33" name="User folder 33" from_dmx="33" to_dmx="33" />
+						<ChannelSet index="34" name="User folder 34" from_dmx="34" to_dmx="34" />
+						<ChannelSet index="35" name="User folder 35" from_dmx="35" to_dmx="35" />
+						<ChannelSet index="36" name="User folder 36" from_dmx="36" to_dmx="36" />
+						<ChannelSet index="37" name="User folder 37" from_dmx="37" to_dmx="37" />
+						<ChannelSet index="38" name="User folder 38" from_dmx="38" to_dmx="38" />
+						<ChannelSet index="39" name="User folder 39" from_dmx="39" to_dmx="39" />
+						<ChannelSet index="40" name="User folder 40" from_dmx="40" to_dmx="40" />
+						<ChannelSet index="41" name="User folder 41" from_dmx="41" to_dmx="41" />
+						<ChannelSet index="42" name="User folder 42" from_dmx="42" to_dmx="42" />
+						<ChannelSet index="43" name="User folder 43" from_dmx="43" to_dmx="43" />
+						<ChannelSet index="44" name="User folder 44" from_dmx="44" to_dmx="44" />
+						<ChannelSet index="45" name="User folder 45" from_dmx="45" to_dmx="45" />
+						<ChannelSet index="46" name="User folder 46" from_dmx="46" to_dmx="46" />
+						<ChannelSet index="47" name="User folder 47" from_dmx="47" to_dmx="47" />
+						<ChannelSet index="48" name="User folder 48" from_dmx="48" to_dmx="48" />
+						<ChannelSet index="49" name="User folder 49" from_dmx="49" to_dmx="49" />
+						<ChannelSet index="50" name="User folder 50" from_dmx="50" to_dmx="50" />
+						<ChannelSet index="51" name="User folder 51" from_dmx="51" to_dmx="51" />
+						<ChannelSet index="52" name="User folder 52" from_dmx="52" to_dmx="52" />
+						<ChannelSet index="53" name="User folder 53" from_dmx="53" to_dmx="53" />
+						<ChannelSet index="54" name="User folder 54" from_dmx="54" to_dmx="54" />
+						<ChannelSet index="55" name="User folder 55" from_dmx="55" to_dmx="55" />
+						<ChannelSet index="56" name="User folder 56" from_dmx="56" to_dmx="56" />
+						<ChannelSet index="57" name="User folder 57" from_dmx="57" to_dmx="57" />
+						<ChannelSet index="58" name="User folder 58" from_dmx="58" to_dmx="58" />
+						<ChannelSet index="59" name="User folder 59" from_dmx="59" to_dmx="59" />
+						<ChannelSet index="60" name="User folder 60" from_dmx="60" to_dmx="60" />
+						<ChannelSet index="61" name="User folder 61" from_dmx="61" to_dmx="61" />
+						<ChannelSet index="62" name="User folder 62" from_dmx="62" to_dmx="62" />
+						<ChannelSet index="63" name="User folder 63" from_dmx="63" to_dmx="63" />
+						<ChannelSet index="64" name="User folder 64" from_dmx="64" to_dmx="64" />
+						<ChannelSet index="65" name="User folder 65" from_dmx="65" to_dmx="65" />
+						<ChannelSet index="66" name="User folder 66" from_dmx="66" to_dmx="66" />
+						<ChannelSet index="67" name="User folder 67" from_dmx="67" to_dmx="67" />
+						<ChannelSet index="68" name="User folder 68" from_dmx="68" to_dmx="68" />
+						<ChannelSet index="69" name="User folder 69" from_dmx="69" to_dmx="69" />
+						<ChannelSet index="70" name="User folder 70" from_dmx="70" to_dmx="70" />
+						<ChannelSet index="71" name="User folder 71" from_dmx="71" to_dmx="71" />
+						<ChannelSet index="72" name="User folder 72" from_dmx="72" to_dmx="72" />
+						<ChannelSet index="73" name="User folder 73" from_dmx="73" to_dmx="73" />
+						<ChannelSet index="74" name="User folder 74" from_dmx="74" to_dmx="74" />
+						<ChannelSet index="75" name="User folder 75" from_dmx="75" to_dmx="75" />
+						<ChannelSet index="76" name="User folder 76" from_dmx="76" to_dmx="76" />
+						<ChannelSet index="77" name="User folder 77" from_dmx="77" to_dmx="77" />
+						<ChannelSet index="78" name="User folder 78" from_dmx="78" to_dmx="78" />
+						<ChannelSet index="79" name="User folder 79" from_dmx="79" to_dmx="79" />
+						<ChannelSet index="80" name="User folder 80" from_dmx="80" to_dmx="80" />
+						<ChannelSet index="81" name="User folder 81" from_dmx="81" to_dmx="81" />
+						<ChannelSet index="82" name="User folder 82" from_dmx="82" to_dmx="82" />
+						<ChannelSet index="83" name="User folder 83" from_dmx="83" to_dmx="83" />
+						<ChannelSet index="84" name="User folder 84" from_dmx="84" to_dmx="84" />
+						<ChannelSet index="85" name="User folder 85" from_dmx="85" to_dmx="85" />
+						<ChannelSet index="86" name="User folder 86" from_dmx="86" to_dmx="86" />
+						<ChannelSet index="87" name="User folder 87" from_dmx="87" to_dmx="87" />
+						<ChannelSet index="88" name="User folder 88" from_dmx="88" to_dmx="88" />
+						<ChannelSet index="89" name="User folder 89" from_dmx="89" to_dmx="89" />
+						<ChannelSet index="90" name="User folder 90" from_dmx="90" to_dmx="90" />
+						<ChannelSet index="91" name="User folder 91" from_dmx="91" to_dmx="91" />
+						<ChannelSet index="92" name="User folder 92" from_dmx="92" to_dmx="92" />
+						<ChannelSet index="93" name="User folder 93" from_dmx="93" to_dmx="93" />
+						<ChannelSet index="94" name="User folder 94" from_dmx="94" to_dmx="94" />
+						<ChannelSet index="95" name="User folder 95" from_dmx="95" to_dmx="95" />
+						<ChannelSet index="96" name="User folder 96" from_dmx="96" to_dmx="96" />
+						<ChannelSet index="97" name="User folder 97" from_dmx="97" to_dmx="97" />
+						<ChannelSet index="98" name="User folder 98" from_dmx="98" to_dmx="98" />
+						<ChannelSet index="99" name="User folder 99" from_dmx="99" to_dmx="99" />
+						<ChannelSet index="100" name="User folder 100" from_dmx="100" to_dmx="100" />
+						<ChannelSet index="101" name="User folder 101" from_dmx="101" to_dmx="101" />
+						<ChannelSet index="102" name="User folder 102" from_dmx="102" to_dmx="102" />
+						<ChannelSet index="103" name="User folder 103" from_dmx="103" to_dmx="103" />
+						<ChannelSet index="104" name="User folder 104" from_dmx="104" to_dmx="104" />
+						<ChannelSet index="105" name="User folder 105" from_dmx="105" to_dmx="105" />
+						<ChannelSet index="106" name="User folder 106" from_dmx="106" to_dmx="106" />
+						<ChannelSet index="107" name="User folder 107" from_dmx="107" to_dmx="107" />
+						<ChannelSet index="108" name="User folder 108" from_dmx="108" to_dmx="108" />
+						<ChannelSet index="109" name="User folder 109" from_dmx="109" to_dmx="109" />
+						<ChannelSet index="110" name="User folder 110" from_dmx="110" to_dmx="110" />
+						<ChannelSet index="111" name="User folder 111" from_dmx="111" to_dmx="111" />
+						<ChannelSet index="112" name="User folder 112" from_dmx="112" to_dmx="112" />
+						<ChannelSet index="113" name="User folder 113" from_dmx="113" to_dmx="113" />
+						<ChannelSet index="114" name="User folder 114" from_dmx="114" to_dmx="114" />
+						<ChannelSet index="115" name="User folder 115" from_dmx="115" to_dmx="115" />
+						<ChannelSet index="116" name="User folder 116" from_dmx="116" to_dmx="116" />
+						<ChannelSet index="117" name="User folder 117" from_dmx="117" to_dmx="117" />
+						<ChannelSet index="118" name="User folder 118" from_dmx="118" to_dmx="118" />
+						<ChannelSet index="119" name="User folder 119" from_dmx="119" to_dmx="119" />
+						<ChannelSet index="120" name="User folder 120" from_dmx="120" to_dmx="120" />
+						<ChannelSet index="121" name="User folder 121" from_dmx="121" to_dmx="121" />
+						<ChannelSet index="122" name="User folder 122" from_dmx="122" to_dmx="122" />
+						<ChannelSet index="123" name="User folder 123" from_dmx="123" to_dmx="123" />
+						<ChannelSet index="124" name="User folder 124" from_dmx="124" to_dmx="124" />
+						<ChannelSet index="125" name="User folder 125" from_dmx="125" to_dmx="125" />
+						<ChannelSet index="126" name="User folder 126" from_dmx="126" to_dmx="126" />
+						<ChannelSet index="127" name="User folder 127" from_dmx="127" to_dmx="127" />
+						<ChannelSet index="128" name="User folder 128" from_dmx="128" to_dmx="128" />
+						<ChannelSet index="129" name="User folder 129" from_dmx="129" to_dmx="129" />
+						<ChannelSet index="130" name="User folder 130" from_dmx="130" to_dmx="130" />
+						<ChannelSet index="131" name="User folder 131" from_dmx="131" to_dmx="131" />
+						<ChannelSet index="132" name="User folder 132" from_dmx="132" to_dmx="132" />
+						<ChannelSet index="133" name="User folder 133" from_dmx="133" to_dmx="133" />
+						<ChannelSet index="134" name="User folder 134" from_dmx="134" to_dmx="134" />
+						<ChannelSet index="135" name="User folder 135" from_dmx="135" to_dmx="135" />
+						<ChannelSet index="136" name="User folder 136" from_dmx="136" to_dmx="136" />
+						<ChannelSet index="137" name="User folder 137" from_dmx="137" to_dmx="137" />
+						<ChannelSet index="138" name="User folder 138" from_dmx="138" to_dmx="138" />
+						<ChannelSet index="139" name="User folder 139" from_dmx="139" to_dmx="139" />
+						<ChannelSet index="140" name="User folder 140" from_dmx="140" to_dmx="140" />
+						<ChannelSet index="141" name="User folder 141" from_dmx="141" to_dmx="141" />
+						<ChannelSet index="142" name="User folder 142" from_dmx="142" to_dmx="142" />
+						<ChannelSet index="143" name="User folder 143" from_dmx="143" to_dmx="143" />
+						<ChannelSet index="144" name="User folder 144" from_dmx="144" to_dmx="144" />
+						<ChannelSet index="145" name="User folder 145" from_dmx="145" to_dmx="145" />
+						<ChannelSet index="146" name="User folder 146" from_dmx="146" to_dmx="146" />
+						<ChannelSet index="147" name="User folder 147" from_dmx="147" to_dmx="147" />
+						<ChannelSet index="148" name="User folder 148" from_dmx="148" to_dmx="148" />
+						<ChannelSet index="149" name="User folder 149" from_dmx="149" to_dmx="149" />
+						<ChannelSet index="150" name="User folder 150" from_dmx="150" to_dmx="150" />
+						<ChannelSet index="151" name="User folder 151" from_dmx="151" to_dmx="151" />
+						<ChannelSet index="152" name="User folder 152" from_dmx="152" to_dmx="152" />
+						<ChannelSet index="153" name="User folder 153" from_dmx="153" to_dmx="153" />
+						<ChannelSet index="154" name="User folder 154" from_dmx="154" to_dmx="154" />
+						<ChannelSet index="155" name="User folder 155" from_dmx="155" to_dmx="155" />
+						<ChannelSet index="156" name="User folder 156" from_dmx="156" to_dmx="156" />
+						<ChannelSet index="157" name="User folder 157" from_dmx="157" to_dmx="157" />
+						<ChannelSet index="158" name="User folder 158" from_dmx="158" to_dmx="158" />
+						<ChannelSet index="159" name="User folder 159" from_dmx="159" to_dmx="159" />
+						<ChannelSet index="160" name="User folder 160" from_dmx="160" to_dmx="160" />
+						<ChannelSet index="161" name="User folder 161" from_dmx="161" to_dmx="161" />
+						<ChannelSet index="162" name="User folder 162" from_dmx="162" to_dmx="162" />
+						<ChannelSet index="163" name="User folder 163" from_dmx="163" to_dmx="163" />
+						<ChannelSet index="164" name="User folder 164" from_dmx="164" to_dmx="164" />
+						<ChannelSet index="165" name="User folder 165" from_dmx="165" to_dmx="165" />
+						<ChannelSet index="166" name="User folder 166" from_dmx="166" to_dmx="166" />
+						<ChannelSet index="167" name="User folder 167" from_dmx="167" to_dmx="167" />
+						<ChannelSet index="168" name="User folder 168" from_dmx="168" to_dmx="168" />
+						<ChannelSet index="169" name="User folder 169" from_dmx="169" to_dmx="169" />
+						<ChannelSet index="170" name="User folder 170" from_dmx="170" to_dmx="170" />
+						<ChannelSet index="171" name="User folder 171" from_dmx="171" to_dmx="171" />
+						<ChannelSet index="172" name="User folder 172" from_dmx="172" to_dmx="172" />
+						<ChannelSet index="173" name="User folder 173" from_dmx="173" to_dmx="173" />
+						<ChannelSet index="174" name="User folder 174" from_dmx="174" to_dmx="174" />
+						<ChannelSet index="175" name="User folder 175" from_dmx="175" to_dmx="175" />
+						<ChannelSet index="176" name="User folder 176" from_dmx="176" to_dmx="176" />
+						<ChannelSet index="177" name="User folder 177" from_dmx="177" to_dmx="177" />
+						<ChannelSet index="178" name="User folder 178" from_dmx="178" to_dmx="178" />
+						<ChannelSet index="179" name="User folder 179" from_dmx="179" to_dmx="179" />
+						<ChannelSet index="180" name="User folder 180" from_dmx="180" to_dmx="180" />
+						<ChannelSet index="181" name="User folder 181" from_dmx="181" to_dmx="181" />
+						<ChannelSet index="182" name="User folder 182" from_dmx="182" to_dmx="182" />
+						<ChannelSet index="183" name="User folder 183" from_dmx="183" to_dmx="183" />
+						<ChannelSet index="184" name="User folder 184" from_dmx="184" to_dmx="184" />
+						<ChannelSet index="185" name="User folder 185" from_dmx="185" to_dmx="185" />
+						<ChannelSet index="186" name="User folder 186" from_dmx="186" to_dmx="186" />
+						<ChannelSet index="187" name="User folder 187" from_dmx="187" to_dmx="187" />
+						<ChannelSet index="188" name="User folder 188" from_dmx="188" to_dmx="188" />
+						<ChannelSet index="189" name="User folder 189" from_dmx="189" to_dmx="189" />
+						<ChannelSet index="190" name="User folder 190" from_dmx="190" to_dmx="190" />
+						<ChannelSet index="191" name="User folder 191" from_dmx="191" to_dmx="191" />
+						<ChannelSet index="192" name="User folder 192" from_dmx="192" to_dmx="192" />
+						<ChannelSet index="193" name="User folder 193" from_dmx="193" to_dmx="193" />
+						<ChannelSet index="194" name="User folder 194" from_dmx="194" to_dmx="194" />
+						<ChannelSet index="195" name="User folder 195" from_dmx="195" to_dmx="195" />
+						<ChannelSet index="196" name="User folder 196" from_dmx="196" to_dmx="196" />
+						<ChannelSet index="197" name="User folder 197" from_dmx="197" to_dmx="197" />
+						<ChannelSet index="198" name="User folder 198" from_dmx="198" to_dmx="198" />
+						<ChannelSet index="199" name="User folder 199" from_dmx="199" to_dmx="199" />
+						<ChannelSet index="200" name="User folder 200" from_dmx="200" to_dmx="200" />
+						<ChannelSet index="201" name="User folder 201" from_dmx="201" to_dmx="201" />
+						<ChannelSet index="202" name="User folder 202" from_dmx="202" to_dmx="202" />
+						<ChannelSet index="203" name="User folder 203" from_dmx="203" to_dmx="203" />
+						<ChannelSet index="204" name="User folder 204" from_dmx="204" to_dmx="204" />
+						<ChannelSet index="205" name="User folder 205" from_dmx="205" to_dmx="205" />
+						<ChannelSet index="206" name="User folder 206" from_dmx="206" to_dmx="206" />
+						<ChannelSet index="207" name="User folder 207" from_dmx="207" to_dmx="207" />
+						<ChannelSet index="208" name="User folder 208" from_dmx="208" to_dmx="208" />
+						<ChannelSet index="209" name="User folder 209" from_dmx="209" to_dmx="209" />
+						<ChannelSet index="210" name="User folder 210" from_dmx="210" to_dmx="210" />
+						<ChannelSet index="211" name="User folder 211" from_dmx="211" to_dmx="211" />
+						<ChannelSet index="212" name="User folder 212" from_dmx="212" to_dmx="212" />
+						<ChannelSet index="213" name="User folder 213" from_dmx="213" to_dmx="213" />
+						<ChannelSet index="214" name="User folder 214" from_dmx="214" to_dmx="214" />
+						<ChannelSet index="215" name="User folder 215" from_dmx="215" to_dmx="215" />
+						<ChannelSet index="216" name="User folder 216" from_dmx="216" to_dmx="216" />
+						<ChannelSet index="217" name="User folder 217" from_dmx="217" to_dmx="217" />
+						<ChannelSet index="218" name="User folder 218" from_dmx="218" to_dmx="218" />
+						<ChannelSet index="219" name="User folder 219" from_dmx="219" to_dmx="219" />
+						<ChannelSet index="220" name="User folder 220" from_dmx="220" to_dmx="220" />
+						<ChannelSet index="221" name="User folder 221" from_dmx="221" to_dmx="221" />
+						<ChannelSet index="222" name="User folder 222" from_dmx="222" to_dmx="222" />
+						<ChannelSet index="223" name="User folder 223" from_dmx="223" to_dmx="223" />
+						<ChannelSet index="224" name="User folder 224" from_dmx="224" to_dmx="224" />
+						<ChannelSet index="225" name="User folder 225" from_dmx="225" to_dmx="225" />
+						<ChannelSet index="226" name="User folder 226" from_dmx="226" to_dmx="226" />
+						<ChannelSet index="227" name="User folder 227" from_dmx="227" to_dmx="227" />
+						<ChannelSet index="228" name="User folder 228" from_dmx="228" to_dmx="228" />
+						<ChannelSet index="229" name="User folder 229" from_dmx="229" to_dmx="229" />
+						<ChannelSet index="230" name="User folder 230" from_dmx="230" to_dmx="230" />
+						<ChannelSet index="231" name="User folder 231" from_dmx="231" to_dmx="231" />
+						<ChannelSet index="232" name="User folder 232" from_dmx="232" to_dmx="232" />
+						<ChannelSet index="233" name="User folder 233" from_dmx="233" to_dmx="233" />
+						<ChannelSet index="234" name="User folder 234" from_dmx="234" to_dmx="234" />
+						<ChannelSet index="235" name="User folder 235" from_dmx="235" to_dmx="235" />
+						<ChannelSet index="236" name="User folder 236" from_dmx="236" to_dmx="236" />
+						<ChannelSet index="237" name="User folder 237" from_dmx="237" to_dmx="237" />
+						<ChannelSet index="238" name="User folder 238" from_dmx="238" to_dmx="238" />
+						<ChannelSet index="239" name="User folder 239" from_dmx="239" to_dmx="239" />
+						<ChannelSet index="240" name="User folder 240" from_dmx="240" to_dmx="240" />
+						<ChannelSet index="241" name="User folder 241" from_dmx="241" to_dmx="241" />
+						<ChannelSet index="242" name="User folder 242" from_dmx="242" to_dmx="242" />
+						<ChannelSet index="243" name="User folder 243" from_dmx="243" to_dmx="243" />
+						<ChannelSet index="244" name="User folder 244" from_dmx="244" to_dmx="244" />
+						<ChannelSet index="245" name="User folder 245" from_dmx="245" to_dmx="245" />
+						<ChannelSet index="246" name="User folder 246" from_dmx="246" to_dmx="246" />
+						<ChannelSet index="247" name="User folder 247" from_dmx="247" to_dmx="247" />
+						<ChannelSet index="248" name="User folder 248" from_dmx="248" to_dmx="248" />
+						<ChannelSet index="249" name="User folder 249" from_dmx="249" to_dmx="249" />
+						<ChannelSet index="250" name="User folder 250" from_dmx="250" to_dmx="250" />
+						<ChannelSet index="251" name="User folder 251" from_dmx="251" to_dmx="251" />
+						<ChannelSet index="252" name="User folder 252" from_dmx="252" to_dmx="252" />
+						<ChannelSet index="253" name="User folder 253" from_dmx="253" to_dmx="253" />
+						<ChannelSet index="254" name="User folder 254" from_dmx="254" to_dmx="254" />
+						<ChannelSet index="255" name="User folder 255" from_dmx="255" to_dmx="255" />
+					</ChannelFunction>
+				</ChannelType>
+				<ChannelType index="1" attribute="MEDIASERVERINPUT" feature="MEDIA" preset="GOBO" coarse="1" snap="true" mib_disable="true">
+					<ChannelFunction index="0" from="0" to="100" min_dmx_24="0" max_dmx_24="16777215" physfrom="0" physto="255" subattribute="MEDIASERVERINPUTFILESELECT" subattribute_user_name="MediaServerInput" attribute="MEDIASERVERINPUT" attribute_user_name="MediaServerInput" feature="MEDIA" feature_user_name="Media" preset="GOBO" preset_user_name="Gobo">
+						<ChannelSet index="0" name="No Playback" from_dmx="0" to_dmx="0" />
+						<ChannelSet index="1" name="File 1" from_dmx="1" to_dmx="1" />
+						<ChannelSet index="2" name="File 2" from_dmx="2" to_dmx="2" />
+						<ChannelSet index="3" name="File 3" from_dmx="3" to_dmx="3" />
+						<ChannelSet index="4" name="File 4" from_dmx="4" to_dmx="4" />
+						<ChannelSet index="5" name="File 5" from_dmx="5" to_dmx="5" />
+						<ChannelSet index="6" name="File 6" from_dmx="6" to_dmx="6" />
+						<ChannelSet index="7" name="File 7" from_dmx="7" to_dmx="7" />
+						<ChannelSet index="8" name="File 8" from_dmx="8" to_dmx="8" />
+						<ChannelSet index="9" name="File 9" from_dmx="9" to_dmx="9" />
+						<ChannelSet index="10" name="File 10" from_dmx="10" to_dmx="10" />
+						<ChannelSet index="11" name="File 11" from_dmx="11" to_dmx="11" />
+						<ChannelSet index="12" name="File 12" from_dmx="12" to_dmx="12" />
+						<ChannelSet index="13" name="File 13" from_dmx="13" to_dmx="13" />
+						<ChannelSet index="14" name="File 14" from_dmx="14" to_dmx="14" />
+						<ChannelSet index="15" name="File 15" from_dmx="15" to_dmx="15" />
+						<ChannelSet index="16" name="File 16" from_dmx="16" to_dmx="16" />
+						<ChannelSet index="17" name="File 17" from_dmx="17" to_dmx="17" />
+						<ChannelSet index="18" name="File 18" from_dmx="18" to_dmx="18" />
+						<ChannelSet index="19" name="File 19" from_dmx="19" to_dmx="19" />
+						<ChannelSet index="20" name="File 20" from_dmx="20" to_dmx="20" />
+						<ChannelSet index="21" name="File 21" from_dmx="21" to_dmx="21" />
+						<ChannelSet index="22" name="File 22" from_dmx="22" to_dmx="22" />
+						<ChannelSet index="23" name="File 23" from_dmx="23" to_dmx="23" />
+						<ChannelSet index="24" name="File 24" from_dmx="24" to_dmx="24" />
+						<ChannelSet index="25" name="File 25" from_dmx="25" to_dmx="25" />
+						<ChannelSet index="26" name="File 26" from_dmx="26" to_dmx="26" />
+						<ChannelSet index="27" name="File 27" from_dmx="27" to_dmx="27" />
+						<ChannelSet index="28" name="File 28" from_dmx="28" to_dmx="28" />
+						<ChannelSet index="29" name="File 29" from_dmx="29" to_dmx="29" />
+						<ChannelSet index="30" name="File 30" from_dmx="30" to_dmx="30" />
+						<ChannelSet index="31" name="File 31" from_dmx="31" to_dmx="31" />
+						<ChannelSet index="32" name="File 32" from_dmx="32" to_dmx="32" />
+						<ChannelSet index="33" name="File 33" from_dmx="33" to_dmx="33" />
+						<ChannelSet index="34" name="File 34" from_dmx="34" to_dmx="34" />
+						<ChannelSet index="35" name="File 35" from_dmx="35" to_dmx="35" />
+						<ChannelSet index="36" name="File 36" from_dmx="36" to_dmx="36" />
+						<ChannelSet index="37" name="File 37" from_dmx="37" to_dmx="37" />
+						<ChannelSet index="38" name="File 38" from_dmx="38" to_dmx="38" />
+						<ChannelSet index="39" name="File 39" from_dmx="39" to_dmx="39" />
+						<ChannelSet index="40" name="File 40" from_dmx="40" to_dmx="40" />
+						<ChannelSet index="41" name="File 41" from_dmx="41" to_dmx="41" />
+						<ChannelSet index="42" name="File 42" from_dmx="42" to_dmx="42" />
+						<ChannelSet index="43" name="File 43" from_dmx="43" to_dmx="43" />
+						<ChannelSet index="44" name="File 44" from_dmx="44" to_dmx="44" />
+						<ChannelSet index="45" name="File 45" from_dmx="45" to_dmx="45" />
+						<ChannelSet index="46" name="File 46" from_dmx="46" to_dmx="46" />
+						<ChannelSet index="47" name="File 47" from_dmx="47" to_dmx="47" />
+						<ChannelSet index="48" name="File 48" from_dmx="48" to_dmx="48" />
+						<ChannelSet index="49" name="File 49" from_dmx="49" to_dmx="49" />
+						<ChannelSet index="50" name="File 50" from_dmx="50" to_dmx="50" />
+						<ChannelSet index="51" name="File 51" from_dmx="51" to_dmx="51" />
+						<ChannelSet index="52" name="File 52" from_dmx="52" to_dmx="52" />
+						<ChannelSet index="53" name="File 53" from_dmx="53" to_dmx="53" />
+						<ChannelSet index="54" name="File 54" from_dmx="54" to_dmx="54" />
+						<ChannelSet index="55" name="File 55" from_dmx="55" to_dmx="55" />
+						<ChannelSet index="56" name="File 56" from_dmx="56" to_dmx="56" />
+						<ChannelSet index="57" name="File 57" from_dmx="57" to_dmx="57" />
+						<ChannelSet index="58" name="File 58" from_dmx="58" to_dmx="58" />
+						<ChannelSet index="59" name="File 59" from_dmx="59" to_dmx="59" />
+						<ChannelSet index="60" name="File 60" from_dmx="60" to_dmx="60" />
+						<ChannelSet index="61" name="File 61" from_dmx="61" to_dmx="61" />
+						<ChannelSet index="62" name="File 62" from_dmx="62" to_dmx="62" />
+						<ChannelSet index="63" name="File 63" from_dmx="63" to_dmx="63" />
+						<ChannelSet index="64" name="File 64" from_dmx="64" to_dmx="64" />
+						<ChannelSet index="65" name="File 65" from_dmx="65" to_dmx="65" />
+						<ChannelSet index="66" name="File 66" from_dmx="66" to_dmx="66" />
+						<ChannelSet index="67" name="File 67" from_dmx="67" to_dmx="67" />
+						<ChannelSet index="68" name="File 68" from_dmx="68" to_dmx="68" />
+						<ChannelSet index="69" name="File 69" from_dmx="69" to_dmx="69" />
+						<ChannelSet index="70" name="File 70" from_dmx="70" to_dmx="70" />
+						<ChannelSet index="71" name="File 71" from_dmx="71" to_dmx="71" />
+						<ChannelSet index="72" name="File 72" from_dmx="72" to_dmx="72" />
+						<ChannelSet index="73" name="File 73" from_dmx="73" to_dmx="73" />
+						<ChannelSet index="74" name="File 74" from_dmx="74" to_dmx="74" />
+						<ChannelSet index="75" name="File 75" from_dmx="75" to_dmx="75" />
+						<ChannelSet index="76" name="File 76" from_dmx="76" to_dmx="76" />
+						<ChannelSet index="77" name="File 77" from_dmx="77" to_dmx="77" />
+						<ChannelSet index="78" name="File 78" from_dmx="78" to_dmx="78" />
+						<ChannelSet index="79" name="File 79" from_dmx="79" to_dmx="79" />
+						<ChannelSet index="80" name="File 80" from_dmx="80" to_dmx="80" />
+						<ChannelSet index="81" name="File 81" from_dmx="81" to_dmx="81" />
+						<ChannelSet index="82" name="File 82" from_dmx="82" to_dmx="82" />
+						<ChannelSet index="83" name="File 83" from_dmx="83" to_dmx="83" />
+						<ChannelSet index="84" name="File 84" from_dmx="84" to_dmx="84" />
+						<ChannelSet index="85" name="File 85" from_dmx="85" to_dmx="85" />
+						<ChannelSet index="86" name="File 86" from_dmx="86" to_dmx="86" />
+						<ChannelSet index="87" name="File 87" from_dmx="87" to_dmx="87" />
+						<ChannelSet index="88" name="File 88" from_dmx="88" to_dmx="88" />
+						<ChannelSet index="89" name="File 89" from_dmx="89" to_dmx="89" />
+						<ChannelSet index="90" name="File 90" from_dmx="90" to_dmx="90" />
+						<ChannelSet index="91" name="File 91" from_dmx="91" to_dmx="91" />
+						<ChannelSet index="92" name="File 92" from_dmx="92" to_dmx="92" />
+						<ChannelSet index="93" name="File 93" from_dmx="93" to_dmx="93" />
+						<ChannelSet index="94" name="File 94" from_dmx="94" to_dmx="94" />
+						<ChannelSet index="95" name="File 95" from_dmx="95" to_dmx="95" />
+						<ChannelSet index="96" name="File 96" from_dmx="96" to_dmx="96" />
+						<ChannelSet index="97" name="File 97" from_dmx="97" to_dmx="97" />
+						<ChannelSet index="98" name="File 98" from_dmx="98" to_dmx="98" />
+						<ChannelSet index="99" name="File 99" from_dmx="99" to_dmx="99" />
+						<ChannelSet index="100" name="File 100" from_dmx="100" to_dmx="100" />
+						<ChannelSet index="101" name="File 101" from_dmx="101" to_dmx="101" />
+						<ChannelSet index="102" name="File 102" from_dmx="102" to_dmx="102" />
+						<ChannelSet index="103" name="File 103" from_dmx="103" to_dmx="103" />
+						<ChannelSet index="104" name="File 104" from_dmx="104" to_dmx="104" />
+						<ChannelSet index="105" name="File 105" from_dmx="105" to_dmx="105" />
+						<ChannelSet index="106" name="File 106" from_dmx="106" to_dmx="106" />
+						<ChannelSet index="107" name="File 107" from_dmx="107" to_dmx="107" />
+						<ChannelSet index="108" name="File 108" from_dmx="108" to_dmx="108" />
+						<ChannelSet index="109" name="File 109" from_dmx="109" to_dmx="109" />
+						<ChannelSet index="110" name="File 110" from_dmx="110" to_dmx="110" />
+						<ChannelSet index="111" name="File 111" from_dmx="111" to_dmx="111" />
+						<ChannelSet index="112" name="File 112" from_dmx="112" to_dmx="112" />
+						<ChannelSet index="113" name="File 113" from_dmx="113" to_dmx="113" />
+						<ChannelSet index="114" name="File 114" from_dmx="114" to_dmx="114" />
+						<ChannelSet index="115" name="File 115" from_dmx="115" to_dmx="115" />
+						<ChannelSet index="116" name="File 116" from_dmx="116" to_dmx="116" />
+						<ChannelSet index="117" name="File 117" from_dmx="117" to_dmx="117" />
+						<ChannelSet index="118" name="File 118" from_dmx="118" to_dmx="118" />
+						<ChannelSet index="119" name="File 119" from_dmx="119" to_dmx="119" />
+						<ChannelSet index="120" name="File 120" from_dmx="120" to_dmx="120" />
+						<ChannelSet index="121" name="File 121" from_dmx="121" to_dmx="121" />
+						<ChannelSet index="122" name="File 122" from_dmx="122" to_dmx="122" />
+						<ChannelSet index="123" name="File 123" from_dmx="123" to_dmx="123" />
+						<ChannelSet index="124" name="File 124" from_dmx="124" to_dmx="124" />
+						<ChannelSet index="125" name="File 125" from_dmx="125" to_dmx="125" />
+						<ChannelSet index="126" name="File 126" from_dmx="126" to_dmx="126" />
+						<ChannelSet index="127" name="File 127" from_dmx="127" to_dmx="127" />
+						<ChannelSet index="128" name="File 128" from_dmx="128" to_dmx="128" />
+						<ChannelSet index="129" name="File 129" from_dmx="129" to_dmx="129" />
+						<ChannelSet index="130" name="File 130" from_dmx="130" to_dmx="130" />
+						<ChannelSet index="131" name="File 131" from_dmx="131" to_dmx="131" />
+						<ChannelSet index="132" name="File 132" from_dmx="132" to_dmx="132" />
+						<ChannelSet index="133" name="File 133" from_dmx="133" to_dmx="133" />
+						<ChannelSet index="134" name="File 134" from_dmx="134" to_dmx="134" />
+						<ChannelSet index="135" name="File 135" from_dmx="135" to_dmx="135" />
+						<ChannelSet index="136" name="File 136" from_dmx="136" to_dmx="136" />
+						<ChannelSet index="137" name="File 137" from_dmx="137" to_dmx="137" />
+						<ChannelSet index="138" name="File 138" from_dmx="138" to_dmx="138" />
+						<ChannelSet index="139" name="File 139" from_dmx="139" to_dmx="139" />
+						<ChannelSet index="140" name="File 140" from_dmx="140" to_dmx="140" />
+						<ChannelSet index="141" name="File 141" from_dmx="141" to_dmx="141" />
+						<ChannelSet index="142" name="File 142" from_dmx="142" to_dmx="142" />
+						<ChannelSet index="143" name="File 143" from_dmx="143" to_dmx="143" />
+						<ChannelSet index="144" name="File 144" from_dmx="144" to_dmx="144" />
+						<ChannelSet index="145" name="File 145" from_dmx="145" to_dmx="145" />
+						<ChannelSet index="146" name="File 146" from_dmx="146" to_dmx="146" />
+						<ChannelSet index="147" name="File 147" from_dmx="147" to_dmx="147" />
+						<ChannelSet index="148" name="File 148" from_dmx="148" to_dmx="148" />
+						<ChannelSet index="149" name="File 149" from_dmx="149" to_dmx="149" />
+						<ChannelSet index="150" name="File 150" from_dmx="150" to_dmx="150" />
+						<ChannelSet index="151" name="File 151" from_dmx="151" to_dmx="151" />
+						<ChannelSet index="152" name="File 152" from_dmx="152" to_dmx="152" />
+						<ChannelSet index="153" name="File 153" from_dmx="153" to_dmx="153" />
+						<ChannelSet index="154" name="File 154" from_dmx="154" to_dmx="154" />
+						<ChannelSet index="155" name="File 155" from_dmx="155" to_dmx="155" />
+						<ChannelSet index="156" name="File 156" from_dmx="156" to_dmx="156" />
+						<ChannelSet index="157" name="File 157" from_dmx="157" to_dmx="157" />
+						<ChannelSet index="158" name="File 158" from_dmx="158" to_dmx="158" />
+						<ChannelSet index="159" name="File 159" from_dmx="159" to_dmx="159" />
+						<ChannelSet index="160" name="File 160" from_dmx="160" to_dmx="160" />
+						<ChannelSet index="161" name="File 161" from_dmx="161" to_dmx="161" />
+						<ChannelSet index="162" name="File 162" from_dmx="162" to_dmx="162" />
+						<ChannelSet index="163" name="File 163" from_dmx="163" to_dmx="163" />
+						<ChannelSet index="164" name="File 164" from_dmx="164" to_dmx="164" />
+						<ChannelSet index="165" name="File 165" from_dmx="165" to_dmx="165" />
+						<ChannelSet index="166" name="File 166" from_dmx="166" to_dmx="166" />
+						<ChannelSet index="167" name="File 167" from_dmx="167" to_dmx="167" />
+						<ChannelSet index="168" name="File 168" from_dmx="168" to_dmx="168" />
+						<ChannelSet index="169" name="File 169" from_dmx="169" to_dmx="169" />
+						<ChannelSet index="170" name="File 170" from_dmx="170" to_dmx="170" />
+						<ChannelSet index="171" name="File 171" from_dmx="171" to_dmx="171" />
+						<ChannelSet index="172" name="File 172" from_dmx="172" to_dmx="172" />
+						<ChannelSet index="173" name="File 173" from_dmx="173" to_dmx="173" />
+						<ChannelSet index="174" name="File 174" from_dmx="174" to_dmx="174" />
+						<ChannelSet index="175" name="File 175" from_dmx="175" to_dmx="175" />
+						<ChannelSet index="176" name="File 176" from_dmx="176" to_dmx="176" />
+						<ChannelSet index="177" name="File 177" from_dmx="177" to_dmx="177" />
+						<ChannelSet index="178" name="File 178" from_dmx="178" to_dmx="178" />
+						<ChannelSet index="179" name="File 179" from_dmx="179" to_dmx="179" />
+						<ChannelSet index="180" name="File 180" from_dmx="180" to_dmx="180" />
+						<ChannelSet index="181" name="File 181" from_dmx="181" to_dmx="181" />
+						<ChannelSet index="182" name="File 182" from_dmx="182" to_dmx="182" />
+						<ChannelSet index="183" name="File 183" from_dmx="183" to_dmx="183" />
+						<ChannelSet index="184" name="File 184" from_dmx="184" to_dmx="184" />
+						<ChannelSet index="185" name="File 185" from_dmx="185" to_dmx="185" />
+						<ChannelSet index="186" name="File 186" from_dmx="186" to_dmx="186" />
+						<ChannelSet index="187" name="File 187" from_dmx="187" to_dmx="187" />
+						<ChannelSet index="188" name="File 188" from_dmx="188" to_dmx="188" />
+						<ChannelSet index="189" name="File 189" from_dmx="189" to_dmx="189" />
+						<ChannelSet index="190" name="File 190" from_dmx="190" to_dmx="190" />
+						<ChannelSet index="191" name="File 191" from_dmx="191" to_dmx="191" />
+						<ChannelSet index="192" name="File 192" from_dmx="192" to_dmx="192" />
+						<ChannelSet index="193" name="File 193" from_dmx="193" to_dmx="193" />
+						<ChannelSet index="194" name="File 194" from_dmx="194" to_dmx="194" />
+						<ChannelSet index="195" name="File 195" from_dmx="195" to_dmx="195" />
+						<ChannelSet index="196" name="File 196" from_dmx="196" to_dmx="196" />
+						<ChannelSet index="197" name="File 197" from_dmx="197" to_dmx="197" />
+						<ChannelSet index="198" name="File 198" from_dmx="198" to_dmx="198" />
+						<ChannelSet index="199" name="File 199" from_dmx="199" to_dmx="199" />
+						<ChannelSet index="200" name="File 200" from_dmx="200" to_dmx="200" />
+						<ChannelSet index="201" name="File 201" from_dmx="201" to_dmx="201" />
+						<ChannelSet index="202" name="File 202" from_dmx="202" to_dmx="202" />
+						<ChannelSet index="203" name="File 203" from_dmx="203" to_dmx="203" />
+						<ChannelSet index="204" name="File 204" from_dmx="204" to_dmx="204" />
+						<ChannelSet index="205" name="File 205" from_dmx="205" to_dmx="205" />
+						<ChannelSet index="206" name="File 206" from_dmx="206" to_dmx="206" />
+						<ChannelSet index="207" name="File 207" from_dmx="207" to_dmx="207" />
+						<ChannelSet index="208" name="File 208" from_dmx="208" to_dmx="208" />
+						<ChannelSet index="209" name="File 209" from_dmx="209" to_dmx="209" />
+						<ChannelSet index="210" name="File 210" from_dmx="210" to_dmx="210" />
+						<ChannelSet index="211" name="File 211" from_dmx="211" to_dmx="211" />
+						<ChannelSet index="212" name="File 212" from_dmx="212" to_dmx="212" />
+						<ChannelSet index="213" name="File 213" from_dmx="213" to_dmx="213" />
+						<ChannelSet index="214" name="File 214" from_dmx="214" to_dmx="214" />
+						<ChannelSet index="215" name="File 215" from_dmx="215" to_dmx="215" />
+						<ChannelSet index="216" name="File 216" from_dmx="216" to_dmx="216" />
+						<ChannelSet index="217" name="File 217" from_dmx="217" to_dmx="217" />
+						<ChannelSet index="218" name="File 218" from_dmx="218" to_dmx="218" />
+						<ChannelSet index="219" name="File 219" from_dmx="219" to_dmx="219" />
+						<ChannelSet index="220" name="File 220" from_dmx="220" to_dmx="220" />
+						<ChannelSet index="221" name="File 221" from_dmx="221" to_dmx="221" />
+						<ChannelSet index="222" name="File 222" from_dmx="222" to_dmx="222" />
+						<ChannelSet index="223" name="File 223" from_dmx="223" to_dmx="223" />
+						<ChannelSet index="224" name="File 224" from_dmx="224" to_dmx="224" />
+						<ChannelSet index="225" name="File 225" from_dmx="225" to_dmx="225" />
+						<ChannelSet index="226" name="File 226" from_dmx="226" to_dmx="226" />
+						<ChannelSet index="227" name="File 227" from_dmx="227" to_dmx="227" />
+						<ChannelSet index="228" name="File 228" from_dmx="228" to_dmx="228" />
+						<ChannelSet index="229" name="File 229" from_dmx="229" to_dmx="229" />
+						<ChannelSet index="230" name="File 230" from_dmx="230" to_dmx="230" />
+						<ChannelSet index="231" name="File 231" from_dmx="231" to_dmx="231" />
+						<ChannelSet index="232" name="File 232" from_dmx="232" to_dmx="232" />
+						<ChannelSet index="233" name="File 233" from_dmx="233" to_dmx="233" />
+						<ChannelSet index="234" name="File 234" from_dmx="234" to_dmx="234" />
+						<ChannelSet index="235" name="File 235" from_dmx="235" to_dmx="235" />
+						<ChannelSet index="236" name="File 236" from_dmx="236" to_dmx="236" />
+						<ChannelSet index="237" name="File 237" from_dmx="237" to_dmx="237" />
+						<ChannelSet index="238" name="File 238" from_dmx="238" to_dmx="238" />
+						<ChannelSet index="239" name="File 239" from_dmx="239" to_dmx="239" />
+						<ChannelSet index="240" name="File 240" from_dmx="240" to_dmx="240" />
+						<ChannelSet index="241" name="File 241" from_dmx="241" to_dmx="241" />
+						<ChannelSet index="242" name="File 242" from_dmx="242" to_dmx="242" />
+						<ChannelSet index="243" name="File 243" from_dmx="243" to_dmx="243" />
+						<ChannelSet index="244" name="File 244" from_dmx="244" to_dmx="244" />
+						<ChannelSet index="245" name="File 245" from_dmx="245" to_dmx="245" />
+						<ChannelSet index="246" name="File 246" from_dmx="246" to_dmx="246" />
+						<ChannelSet index="247" name="File 247" from_dmx="247" to_dmx="247" />
+						<ChannelSet index="248" name="File 248" from_dmx="248" to_dmx="248" />
+						<ChannelSet index="249" name="File 249" from_dmx="249" to_dmx="249" />
+						<ChannelSet index="250" name="File 250" from_dmx="250" to_dmx="250" />
+						<ChannelSet index="251" name="File 251" from_dmx="251" to_dmx="251" />
+						<ChannelSet index="252" name="File 252" from_dmx="252" to_dmx="252" />
+						<ChannelSet index="253" name="File 253" from_dmx="253" to_dmx="253" />
+						<ChannelSet index="254" name="File 254" from_dmx="254" to_dmx="254" />
+						<ChannelSet index="255" name="File 255" from_dmx="255" to_dmx="255" />
+					</ChannelFunction>
+				</ChannelType>
+				<ChannelType index="2" attribute="MODE" feature="FIXTURE" preset="CONTROL" coarse="3" snap="true" mib_disable="true">
+					<ChannelFunction index="0" from="0" to="100" min_dmx_24="0" max_dmx_24="16777215" physfrom="0" physto="255" subattribute="MODE" subattribute_user_name="Normal" attribute="MODE" attribute_user_name="Mode" feature="FIXTURE" feature_user_name="Fixture" preset="CONTROL" preset_user_name="Control">
+						<ChannelSet index="0" name="No Loop" from_dmx="0" to_dmx="127" />
+						<ChannelSet index="1" name="Loop" from_dmx="128" to_dmx="255" />
+					</ChannelFunction>
+				</ChannelType>
+				<ChannelType index="3" attribute="CAMERA_1" feature="V_CAMERA" preset="VIDEO" coarse="4" snap="true" mib_disable="true">
+					<ChannelFunction index="0" name="Kamera" from="0" to="100" min_dmx_24="0" max_dmx_24="16777215" physfrom="0" physto="100" subattribute="CAMERA_1" subattribute_user_name="Cam1" attribute="CAMERA_1" attribute_user_name="Cam1" feature="V_CAMERA" feature_user_name="Camera" preset="VIDEO" preset_user_name="Video">
+						<ChannelSet index="0" name="Program" from_dmx="0" to_dmx="127" />
+						<ChannelSet index="1" name="Kamera" from_dmx="128" to_dmx="255" />
+					</ChannelFunction>
+				</ChannelType>
+			</Module>
+		</Modules>
+		<Instances index="1">
+			<Instance index="0" module_index="0" />
+		</Instances>
+		<Wheels index="2" />
+		<VirtualFunctionBlocks index="3" />
+		<FixtureMacroCollect index="5" />
+		<Body />
+		<AutoPresets index="4" />
+		<RdmNotifications index="6">
+			<RdmNotification index="0" Type="Absent" Subcategory="RDM Warning" />
+		</RdmNotifications>
+	</FixtureType>
+</MA>

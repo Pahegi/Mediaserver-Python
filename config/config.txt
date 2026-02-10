@@ -1,0 +1,7 @@
+[DMX]
+Address = 1
+Universe = 1
+MediaPath = /home/pi/media/
+
+[Web]
+Port = 8080
