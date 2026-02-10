@@ -60,10 +60,12 @@ Access at `http://<pi-ip>:8080/`
 
 ### Prerequisites
 
-- Raspberry Pi (tested on Pi 5) with Raspberry Pi OS Desktop (Wayland)
+- Raspberry Pi 5 (CM5 or standard) with Raspberry Pi OS Lite
 - Python ≥ 3.9
-- mpv: `sudo apt install mpv`
 - Poetry: `pipx install poetry` (or `sudo apt install pipx && pipx install poetry`)
+- mpv: `sudo apt install libmpv-dev mpv`
+
+> **Note:** Pi 5 only has hardware HEVC (H.265) decoding. H.264 videos use software decode (CPU handles 1080p fine).
 
 ### Setup
 
@@ -144,8 +146,6 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=pi
-Environment=WAYLAND_DISPLAY=wayland-0
-Environment=XDG_RUNTIME_DIR=/run/user/1000
 WorkingDirectory=/home/pi/Mediaserver-Python
 ExecStart=/home/pi/Mediaserver-Python/.venv/bin/mediaserver
 Restart=on-failure
@@ -155,6 +155,7 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+sudo usermod -aG video pi
 sudo systemctl daemon-reload
 sudo systemctl enable --now mediaserver
 ```
@@ -169,14 +170,12 @@ crontab -e
 
 ### SSH Usage
 
-When running via SSH, set the Wayland display environment so mpv can render on the local screen:
+No environment variables needed — DRM outputs directly to the display. Just ensure your user is in the `video` group:
 
 ```bash
-export WAYLAND_DISPLAY=wayland-0
-export XDG_RUNTIME_DIR=/run/user/1000
+sudo usermod -aG video pi
+# Log out and back in for group change to take effect
 ```
-
-Add these to `~/.bashrc` to make them persistent.
 
 ### HDMI Audio
 

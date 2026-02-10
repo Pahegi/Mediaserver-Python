@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import threading
 from functools import partial
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -180,11 +181,18 @@ _HTML_TEMPLATE = """\
   .param-row select {{ margin-bottom: 0; padding: .3rem .4rem; font-size: .85rem; }}
   .param-val {{ font-family: monospace; font-size: .82rem; text-align: right;
                 color: var(--accent); min-width: 3rem; }}
+
+  /* Connection indicator */
+  .conn {{ display: inline-block; width: .6rem; height: .6rem; border-radius: 50%;
+           margin-right: .4rem; vertical-align: middle; }}
+  .conn.ok {{ background: var(--ok); box-shadow: 0 0 4px var(--ok); }}
+  .conn.lost {{ background: var(--err); box-shadow: 0 0 4px var(--err); animation: blink 1s infinite; }}
+  @keyframes blink {{ 50% {{ opacity: .3; }} }}
 </style>
 </head>
 <body>
 <div class="page-header">
-  <h1>&#9654; Pi Mediaserver</h1>
+  <h1><span id="conn" class="conn ok"></span>&#9654; Pi Mediaserver</h1>
   <p>DMX/sACN-controlled media server &bull; v3.5</p>
 </div>
 
@@ -195,15 +203,36 @@ _HTML_TEMPLATE = """\
   <strong>Playback</strong>
   <div class="status-grid" style="margin-top:.5rem">
     <span class="label">Status</span>
-    <span class="value"><span class="badge {playing_class}">{playing_label}</span></span>
+    <span class="value"><span id="st-badge" class="badge {playing_class}">{playing_label}</span></span>
     <span class="label">Current</span>
-    <span class="value">{current_file}</span>
+    <span class="value" id="st-file">{current_file}</span>
     <span class="label">Mode</span>
-    <span class="value">{play_mode}</span>
+    <span class="value" id="st-mode">{play_mode}</span>
     <span class="label">Volume</span>
-    <span class="value">{volume_percent}% <small style="opacity:.45">DMX {volume_raw}</small></span>
+    <span class="value" id="st-vol">{volume_percent}% <small style="opacity:.45">DMX {volume_raw}</small></span>
     <span class="label">Brightness</span>
-    <span class="value">{brightness_percent}% <small style="opacity:.45">DMX {brightness_raw}</small></span>
+    <span class="value" id="st-bri">{brightness_percent}% <small style="opacity:.45">DMX {brightness_raw}</small></span>
+    <span class="label">Resolution</span>
+    <span class="value" id="st-res">{resolution}</span>
+    <span class="label">FPS</span>
+    <span class="value" id="st-fps">{fps}</span>
+    <span class="label">Dropped Frames</span>
+    <span class="value" id="st-drop">{dropped_frames}</span>
+  </div>
+</article>
+
+<!-- System Stats -->
+<article>
+  <strong>System</strong>
+  <div class="status-grid" style="margin-top:.5rem">
+    <span class="label">CPU</span>
+    <span class="value" id="st-cpu">{cpu_percent}%</span>
+    <span class="label">RAM</span>
+    <span class="value" id="st-ram">{ram_used} / {ram_total} MB ({ram_percent}%)</span>
+    <span class="label">CPU Temp</span>
+    <span class="value" id="st-ctemp">{cpu_temp}</span>
+    <span class="label">GPU Temp</span>
+    <span class="value" id="st-gtemp">{gpu_temp}</span>
   </div>
 </article>
 
@@ -517,8 +546,41 @@ document.getElementById('txt-modal').addEventListener('click', function(e) {{
   if (e.target === this) closeTxtModal();
 }});
 
-// Auto-refresh every 5 seconds
-setTimeout(() => location.reload(), 5000);
+// Live status polling (no page reload)
+let _failCount = 0;
+function refreshStatus() {{
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 3000);
+  fetch('/api/status', {{signal: ctrl.signal}}).then(r => {{
+    clearTimeout(tid);
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }}).then(d => {{
+    _failCount = 0;
+    document.getElementById('conn').className = 'conn ok';
+    const badge = document.getElementById('st-badge');
+    badge.textContent = d.paused ? 'Paused' : (d.playing ? 'Playing' : 'Stopped');
+    badge.className = 'badge ' + (d.paused ? 'paused' : (d.playing ? 'on' : 'off'));
+    document.getElementById('st-file').textContent = d.current_file || '\u2014';
+    document.getElementById('st-mode').textContent = d.play_mode;
+    document.getElementById('st-vol').innerHTML = d.volume_percent + '% <small style="opacity:.45">DMX ' + d.volume + '</small>';
+    document.getElementById('st-bri').innerHTML = d.brightness_percent + '% <small style="opacity:.45">DMX ' + d.brightness + '</small>';
+    document.getElementById('st-res').textContent = d.resolution || '\u2014';
+    document.getElementById('st-fps').textContent = d.fps ? d.fps + ' fps' : '\u2014';
+    document.getElementById('st-drop').textContent = d.dropped_frames != null ? d.dropped_frames : '0';
+    document.getElementById('st-cpu').textContent = d.cpu_percent + '%';
+    document.getElementById('st-ram').textContent = d.ram_used + ' / ' + d.ram_total + ' MB (' + d.ram_percent + '%)';
+    document.getElementById('st-ctemp').textContent = d.cpu_temp;
+    document.getElementById('st-gtemp').textContent = d.gpu_temp;
+  }}).catch(() => {{
+    clearTimeout(tid);
+    _failCount++;
+    if (_failCount >= 2) {{
+      document.getElementById('conn').className = 'conn lost';
+    }}
+  }});
+}}
+setInterval(refreshStatus, 2000);
 </script>
 </body>
 </html>
@@ -588,6 +650,59 @@ class _WebHandler(BaseHTTPRequestHandler):
     # Status helpers
     # =====================================================================
 
+    @staticmethod
+    def _get_system_stats() -> dict:
+        """Collect CPU, RAM, and temperature stats."""
+        # CPU load
+        try:
+            load = os.getloadavg()
+            cpu_count = os.cpu_count() or 4
+            cpu_percent = round(load[0] / cpu_count * 100, 1)
+        except OSError:
+            cpu_percent = 0.0
+
+        # RAM from /proc/meminfo
+        ram_total = ram_used = ram_percent = 0
+        try:
+            with open("/proc/meminfo") as f:
+                info = {}
+                for line in f:
+                    parts = line.split()
+                    if parts[0] in ("MemTotal:", "MemAvailable:"):
+                        info[parts[0]] = int(parts[1])
+                total_kb = info.get("MemTotal:", 0)
+                avail_kb = info.get("MemAvailable:", 0)
+                ram_total = round(total_kb / 1024)
+                ram_used = round((total_kb - avail_kb) / 1024)
+                ram_percent = round((total_kb - avail_kb) / total_kb * 100, 1) if total_kb else 0
+        except OSError:
+            pass
+
+        # CPU temp
+        try:
+            with open("/sys/class/thermal/thermal_zone0/temp") as f:
+                cpu_temp = f"{round(int(f.read().strip()) / 1000, 1)}\u00b0C"
+        except OSError:
+            cpu_temp = "\u2014"
+
+        # GPU temp via vcgencmd
+        try:
+            out = subprocess.check_output(
+                ["vcgencmd", "measure_temp"], timeout=2, text=True
+            )
+            gpu_temp = out.strip().replace("temp=", "").replace("'C", "\u00b0C")
+        except Exception:
+            gpu_temp = "\u2014"
+
+        return {
+            "cpu_percent": cpu_percent,
+            "ram_total": ram_total,
+            "ram_used": ram_used,
+            "ram_percent": ram_percent,
+            "cpu_temp": cpu_temp,
+            "gpu_temp": gpu_temp,
+        }
+
     def _build_status(self) -> dict:
         srv = self.server_ref
         return {
@@ -600,8 +715,12 @@ class _WebHandler(BaseHTTPRequestHandler):
             "volume_percent": srv.player.volume_percent,
             "brightness": srv.player.brightness,
             "brightness_percent": srv.player.brightness_percent,
+            "fps": srv.player.fps,
+            "dropped_frames": srv.player.dropped_frames,
+            "resolution": srv.player.resolution,
             "dmx": {"address": srv.config.address, "universe": srv.config.universe},
             "mediapath": srv.config.mediapath,
+            **self._get_system_stats(),
         }
 
     def _build_folders(self) -> dict:
@@ -728,6 +847,15 @@ class _WebHandler(BaseHTTPRequestHandler):
             volume_raw=status["volume"],
             brightness_percent=status["brightness_percent"],
             brightness_raw=status["brightness"],
+            resolution=status["resolution"] or "\u2014",
+            fps=f'{status["fps"]} fps' if status["fps"] else "\u2014",
+            dropped_frames=status["dropped_frames"],
+            cpu_percent=status["cpu_percent"],
+            ram_total=status["ram_total"],
+            ram_used=status["ram_used"],
+            ram_percent=status["ram_percent"],
+            cpu_temp=status["cpu_temp"],
+            gpu_temp=status["gpu_temp"],
             address=srv.config.address,
             universe=srv.config.universe,
             mediapath=srv.config.mediapath,

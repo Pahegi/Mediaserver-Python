@@ -19,29 +19,28 @@ class Player:
 
         self._player = mpv.MPV(
             fullscreen=True,
-            # RPi hardware decoder — skips slow CUDA/Vulkan probing
-            hwdec="v4l2",
+            # Pi5: HEVC hw decode via DRM
+            hwdec="drm",
             vo="gpu",
-            gpu_context="wayland",
+            gpu_context="drm",
             idle=True,
             # Keep a fullscreen black window visible at all times
             force_window="immediate",
             background_color="#000000",
             osc=False,
-            # Audio output via HDMI (PipeWire native)
-            ao="pipewire,pulse",
+            # Audio output via ALSA
+            ao="alsa",
             config=False,
             input_default_bindings=False,
             input_vo_keyboard=False,
-            # Low-latency: reduce buffering for fast start
-            # demuxer_max_bytes="512KiB",
-            # demuxer_max_back_bytes="128KiB",
             # auto = cache for network streams, no cache for local files
             cache="auto",
             untimed=False,
             # Prevent lagging on long-running playback
             framedrop="vo",
             video_sync="audio",
+            # Reduce GPU load on Pi5 VideoCore VII
+            profile="fast",
             log_handler=_log,
             loglevel="warn",
         )
@@ -299,6 +298,34 @@ class Player:
     def is_playing(self) -> bool:
         """True if media is currently loaded and playing."""
         return self._current_path != ""
+
+    @property
+    def fps(self) -> float:
+        """Current actual display FPS (0 if not playing)."""
+        try:
+            return round(self._player.container_fps or 0, 1)
+        except Exception:
+            return 0.0
+
+    @property
+    def dropped_frames(self) -> int:
+        """Number of dropped frames."""
+        try:
+            return self._player.frame_drop_count or 0
+        except Exception:
+            return 0
+
+    @property
+    def resolution(self) -> str:
+        """Current video resolution as 'WxH' (empty if not playing)."""
+        try:
+            w = self._player.width
+            h = self._player.height
+            if w and h:
+                return f"{w}x{h}"
+        except Exception:
+            pass
+        return ""
 
     def shutdown(self) -> None:
         """Terminate the mpv process cleanly."""
