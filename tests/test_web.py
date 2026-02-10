@@ -30,10 +30,17 @@ def _make_mock_server(tmp_path):
     srv.player.volume_percent = 78
     srv.player.brightness = 255
     srv.player.brightness_percent = 100
+    srv.player.fps = 30.0
+    srv.player.dropped_frames = 0
+    srv.player.resolution = "1920x1080"
     srv.player.video_params = {
         "contrast": 0, "saturation": 0, "gamma": 0, "speed": 1.0,
         "rotation": 0, "zoom": 0.0, "pan_x": 0.0, "pan_y": 0.0,
     }
+    # DMX receiver mock
+    srv.receiver.is_receiving = False
+    srv.receiver.is_active = False
+    srv.receiver.channellist.get = lambda offset: 0
     return srv
 
 

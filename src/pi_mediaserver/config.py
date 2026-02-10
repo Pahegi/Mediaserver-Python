@@ -13,6 +13,8 @@ class Config:
     universe: int = 1
     mediapath: str = "/home/pi/media/"
     web_port: int = 8080
+    dmx_fail_mode: str = "hold"
+    dmx_fail_osd: bool = True
 
     @property
     def dmx_label(self) -> str:
@@ -49,6 +51,10 @@ def load_config(configpath: str = "/home/pi/config.txt") -> Config:
             config.address = parser.getint(section, "Address", fallback=config.address)
             config.universe = parser.getint(section, "Universe", fallback=config.universe)
             config.mediapath = parser.get(section, "MediaPath", fallback=config.mediapath)
+            config.dmx_fail_mode = parser.get(section, "FailMode", fallback=config.dmx_fail_mode)
+            if config.dmx_fail_mode not in ("hold", "blackout"):
+                config.dmx_fail_mode = "hold"
+            config.dmx_fail_osd = parser.getboolean(section, "FailOSD", fallback=config.dmx_fail_osd)
             # Ensure mediapath ends with /
             if not config.mediapath.endswith("/"):
                 config.mediapath += "/"

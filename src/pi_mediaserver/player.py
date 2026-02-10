@@ -327,6 +327,13 @@ class Player:
             pass
         return ""
 
+    def show_osd(self, text: str, duration: float = 3.0) -> None:
+        """Show an OSD message on the mpv video output."""
+        try:
+            self._player.command("show-text", text, int(duration * 1000))
+        except Exception:
+            pass
+
     def shutdown(self) -> None:
         """Terminate the mpv process cleanly."""
         try:

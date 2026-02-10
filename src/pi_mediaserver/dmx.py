@@ -18,6 +18,7 @@ DMX Protocol (13 channels starting at configured address):
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Callable
 
 import sacn
@@ -231,6 +232,23 @@ class DMXReceiver:
         self.channellist = Channellist(address)
         self._receiver = sacn.sACNreceiver()
         self._callback: Callable[[Channellist], None] | None = None
+        self._last_change_time: float = 0.0
+        self._universe_available: bool = False
+
+    @property
+    def is_receiving(self) -> bool:
+        """True if sACN packets are being received on our universe.
+
+        Uses the sacn library's built-in availability tracking which
+        monitors raw packet arrivals at the socket level — independent
+        of whether DMX values actually changed.
+        """
+        return self._universe_available
+
+    @property
+    def is_active(self) -> bool:
+        """True if a DMX value actually changed within the last 5 seconds."""
+        return (time.monotonic() - self._last_change_time) < 5.0
 
     def on_update(self, callback: Callable[[Channellist], None]) -> None:
         """Register a callback that fires when file/folder channels change.
@@ -242,6 +260,16 @@ class DMXReceiver:
     def start(self) -> None:
         """Start listening for sACN packets."""
 
+        @self._receiver.listen_on("availability")
+        def _on_availability(universe: int, changed: str) -> None:
+            if universe == self.universe:
+                was = self._universe_available
+                self._universe_available = changed == "available"
+                if self._universe_available and not was:
+                    print(f"sACN universe {universe} available")
+                elif not self._universe_available and was:
+                    print(f"sACN universe {universe} timed out")
+
         @self._receiver.listen_on("universe", universe=self.universe)
         def _on_packet(packet: sACNPacket) -> None:
             self.channellist.update(packet.dmxData)
@@ -252,8 +280,10 @@ class DMXReceiver:
                 or self.channellist.brightness_changed
                 or self.channellist.video_effects_changed
             )
-            if has_changes and self._callback:
-                self._callback(self.channellist)
+            if has_changes:
+                self._last_change_time = time.monotonic()
+                if self._callback:
+                    self._callback(self.channellist)
 
         self._receiver.start()
         self._receiver.join_multicast(self.universe)

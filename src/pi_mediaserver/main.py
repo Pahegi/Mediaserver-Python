@@ -41,6 +41,8 @@ class Server:
         self.receiver = DMXReceiver(config.universe, config.address)
         self.receiver.on_update(self._on_dmx_update)
         self._stop_event = threading.Event()
+        self._dmx_was_receiving = False
+        self._dmx_fail_applied = False
 
     def start(self) -> None:
         """Start the media server."""
@@ -49,6 +51,9 @@ class Server:
 
         # Start web interface
         start_web_server(self, self.config.web_port)
+
+        # Start DMX fail mode watchdog
+        self._start_dmx_watchdog()
 
         # Wait until stopped via signal
         self._stop_event.wait()
@@ -59,6 +64,45 @@ class Server:
         self.receiver.stop()
         self.player.shutdown()
         self._stop_event.set()
+
+    # ----- DMX fail mode watchdog -----
+
+    def _start_dmx_watchdog(self) -> None:
+        """Start a background thread that monitors DMX signal and applies fail mode."""
+        def _watchdog() -> None:
+            while not self._stop_event.is_set():
+                receiving = self.receiver.is_receiving
+                if self._dmx_was_receiving and not receiving:
+                    # Signal just lost — apply fail mode + optional OSD
+                    self._apply_dmx_fail_mode()
+                elif not receiving and self._dmx_fail_applied:
+                    # Still lost — keep OSD visible if enabled
+                    if self.config.dmx_fail_osd:
+                        self.player.show_osd("DMX Signal Lost", duration=3.0)
+                elif receiving and self._dmx_fail_applied:
+                    # Signal restored — clear fail state
+                    self._dmx_fail_applied = False
+                    print("DMX signal restored")
+                    if self.config.dmx_fail_osd:
+                        self.player.show_osd("DMX Signal Restored", duration=2.0)
+                self._dmx_was_receiving = receiving
+                self._stop_event.wait(2.0)
+
+        t = threading.Thread(target=_watchdog, daemon=True)
+        t.start()
+
+    def _apply_dmx_fail_mode(self) -> None:
+        """Apply the configured DMX fail mode when signal is lost."""
+        mode = self.config.dmx_fail_mode
+        print(f"DMX signal lost — applying fail mode: {mode}")
+        self._dmx_fail_applied = True
+
+        if mode == "blackout":
+            self.player.stop()
+        # "hold" = do nothing, keep last state
+
+        if self.config.dmx_fail_osd:
+            self.player.show_osd("DMX Signal Lost", duration=3.0)
 
     def _on_dmx_update(self, channels: Channellist) -> None:
         """Handle incoming DMX frame with changed values."""

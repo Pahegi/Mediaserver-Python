@@ -61,10 +61,53 @@ _HTML_TEMPLATE = """\
   .badge.off {{ background: #334; color: #889; }}
   .badge.paused {{ background: var(--warn); color: #fff; }}
 
-  /* Status grid */
-  .status-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 2rem; }}
-  .status-grid .label {{ opacity: .55; font-size: .9rem; }}
-  .status-grid .value {{ font-size: .9rem; }}
+  /* Dashboard layout */
+  .dashboard {{ display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1rem; }}
+  @media (min-width: 768px) {{ .dashboard {{ grid-template-columns: 1fr 1fr; }} }}
+  .stat-card {{ background: var(--pico-card-background-color);
+               border: 1px solid var(--pico-muted-border-color);
+               border-radius: .5rem; padding: 1rem; }}
+  .stat-card.full {{ grid-column: 1 / -1; }}
+  .stat-card h4 {{ margin: 0 0 .6rem; font-size: .85rem; text-transform: uppercase;
+                   letter-spacing: .06em; font-weight: 700;
+                   color: var(--accent); }}
+  .now-playing {{ display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem;
+                  font-size: .95rem; font-weight: 600; overflow: hidden; }}
+  .now-playing .np-file {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+  .stat-row {{ display: flex; justify-content: space-between; align-items: center;
+               padding: .2rem 0; font-size: .85rem; }}
+  .stat-row .s-label {{ opacity: .45; min-width: 5.5rem; flex-shrink: 0; }}
+  .stat-row .s-value {{ text-align: right; display: flex; align-items: center; gap: .4rem;
+                        justify-content: flex-end; font-variant-numeric: tabular-nums; }}
+  .s-pct {{ display: inline-block; min-width: 3.5rem; text-align: right;
+            font-variant-numeric: tabular-nums; font-family: monospace; }}
+  .s-raw {{ font-size: .72rem; opacity: .35; white-space: nowrap; }}
+  .section-sep {{ border: none; border-top: 1px solid var(--pico-muted-border-color);
+                  margin: .35rem 0; opacity: .15; }}
+
+  /* DMX control two-column grid */
+  .dmx-ctrl {{ display: grid; grid-template-columns: 1fr; gap: 0 2rem; }}
+  @media (min-width: 768px) {{ .dmx-ctrl {{ grid-template-columns: 1fr 1fr; }} }}
+  .dmx-ctrl .stat-row {{ padding: .18rem 0; }}
+
+  /* Mini progress bars */
+  .mini-bar {{ width: 48px; height: 4px; background: var(--pico-muted-border-color);
+               border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle;
+               flex-shrink: 0; }}
+  .mini-bar-fill {{ height: 100%; border-radius: 2px; transition: width .4s; }}
+  .fill-ok {{ background: var(--ok); }}
+  .fill-warn {{ background: var(--warn); }}
+  .fill-err {{ background: var(--err); }}
+  .fill-accent {{ background: var(--accent); }}
+
+  /* Signal indicator dot */
+  .sig {{ display: inline-block; width: .45rem; height: .45rem; border-radius: 50%;
+          vertical-align: middle; margin-left: .4rem; }}
+  .sig.active {{ background: var(--ok); box-shadow: 0 0 4px var(--ok); }}
+  .sig.inactive {{ background: #555; }}
+  /* Throttle warning (hidden when ok) */
+  .throttle-row {{ transition: opacity .3s; }}
+  .throttle-row.hidden {{ display: none; }}
 
   /* Protocol reference */
   .protocol {{ display: grid; grid-template-columns: auto 1fr; gap: .15rem .8rem; font-size: .85rem; }}
@@ -108,16 +151,29 @@ _HTML_TEMPLATE = """\
   .btn-warn {{ background: var(--warn); color: #111; }}
   .btn-sm {{ padding: .2rem .45rem; font-size: .75rem; }}
 
-  /* Drop zone */
-  .dropzone {{ border: 2px dashed var(--pico-muted-border-color); border-radius: 6px;
-               padding: .6rem; text-align: center; font-size: .82rem; opacity: .5;
-               transition: all .2s; margin-top: .4rem; }}
+  /* Drop zone — combined drag & click upload */
+  .dropzone {{ border: 2px dashed var(--pico-muted-border-color); border-radius: 8px;
+               padding: 1.2rem .8rem; text-align: center; font-size: .85rem; opacity: .6;
+               transition: all .2s; margin-top: .6rem; cursor: pointer; position: relative; }}
+  .dropzone:hover {{ border-color: var(--accent); opacity: .85; }}
   .dropzone.active {{ border-color: var(--accent); opacity: 1; background: var(--accent-dim); }}
+  .dropzone input[type=file] {{ position: absolute; inset: 0; opacity: 0; cursor: pointer; }}
+  .dropzone .dz-icon {{ font-size: 1.6rem; display: block; margin-bottom: .3rem; opacity: .5; }}
+  .dropzone .dz-hint {{ font-size: .78rem; opacity: .45; margin-top: .2rem; }}
 
-  /* Upload bar */
-  .upload-bar {{ display: flex; gap: .5rem; align-items: center; margin-top: .5rem;
-                 font-size: .82rem; }}
-  .upload-bar input[type=file] {{ font-size: .8rem; flex: 1; }}
+  /* Pending upload list */
+  .pending-files {{ margin-top: .5rem; font-size: .82rem; }}
+  .pending-files .pf-item {{ display: flex; justify-content: space-between; align-items: center;
+                             padding: .2rem .5rem; border-bottom: 1px solid var(--pico-muted-border-color); }}
+  .pending-files .pf-name {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+  .pending-files .pf-size {{ opacity: .45; font-size: .75rem; white-space: nowrap; margin-left: .5rem; }}
+  .pending-files .pf-remove {{ cursor: pointer; color: var(--err); font-weight: 700;
+                               border: none; background: none; padding: 0 .3rem; font-size: .9rem; }}
+  .upload-actions {{ display: flex; gap: .5rem; margin-top: .5rem; align-items: center; }}
+  .upload-progress {{ flex: 1; height: 4px; background: var(--pico-muted-border-color);
+                      border-radius: 2px; overflow: hidden; display: none; }}
+  .upload-progress .bar {{ height: 100%; background: var(--accent); width: 0%;
+                           transition: width .2s; }}
 
   /* Inline rename input */
   .rename-input {{ background: var(--pico-background-color); color: var(--pico-color);
@@ -166,21 +222,11 @@ _HTML_TEMPLATE = """\
   .config-grid {{ display: grid; grid-template-columns: auto 1fr; gap: .5rem .8rem;
                   align-items: center; }}
   .config-grid label {{ font-size: .88rem; opacity: .6; margin-bottom: 0; }}
-  .config-grid input {{ padding: .35rem .5rem; margin-bottom: 0; }}
+  .config-grid input, .config-grid select {{ padding: .35rem .5rem; margin-bottom: 0; }}
 
   /* Collapse sections */
   details {{ margin-bottom: 1rem; }}
   details summary {{ cursor: pointer; font-weight: 600; }}
-
-  /* Video params */
-  .video-params {{ display: flex; flex-direction: column; gap: .4rem; }}
-  .param-row {{ display: grid; grid-template-columns: 6rem 1fr 3.5rem; gap: .5rem;
-                align-items: center; font-size: .88rem; }}
-  .param-row label {{ opacity: .6; margin-bottom: 0; }}
-  .param-row input[type=range] {{ margin-bottom: 0; }}
-  .param-row select {{ margin-bottom: 0; padding: .3rem .4rem; font-size: .85rem; }}
-  .param-val {{ font-family: monospace; font-size: .82rem; text-align: right;
-                color: var(--accent); min-width: 3rem; }}
 
   /* Connection indicator */
   .conn {{ display: inline-block; width: .6rem; height: .6rem; border-radius: 50%;
@@ -198,98 +244,50 @@ _HTML_TEMPLATE = """\
 
 {message}
 
-<!-- Playback Status -->
-<article>
-  <strong>Playback</strong>
-  <div class="status-grid" style="margin-top:.5rem">
-    <span class="label">Status</span>
-    <span class="value"><span id="st-badge" class="badge {playing_class}">{playing_label}</span></span>
-    <span class="label">Current</span>
-    <span class="value" id="st-file">{current_file}</span>
-    <span class="label">Mode</span>
-    <span class="value" id="st-mode">{play_mode}</span>
-    <span class="label">Volume</span>
-    <span class="value" id="st-vol">{volume_percent}% <small style="opacity:.45">DMX {volume_raw}</small></span>
-    <span class="label">Brightness</span>
-    <span class="value" id="st-bri">{brightness_percent}% <small style="opacity:.45">DMX {brightness_raw}</small></span>
-    <span class="label">Resolution</span>
-    <span class="value" id="st-res">{resolution}</span>
-    <span class="label">FPS</span>
-    <span class="value" id="st-fps">{fps}</span>
-    <span class="label">Dropped Frames</span>
-    <span class="value" id="st-drop">{dropped_frames}</span>
+<div class="dashboard">
+  <!-- Now Playing -->
+  <div class="stat-card">
+    <h4>Now Playing</h4>
+    <div class="now-playing">
+      <span id="st-badge" class="badge {playing_class}">{playing_label}</span>
+      <span class="np-file" id="st-file" title="{current_file}">{current_file}</span>
+    </div>
+    <div class="stat-row"><span class="s-label">Resolution</span><span class="s-value" id="st-res">{resolution}</span></div>
+    <div class="stat-row"><span class="s-label">FPS</span><span class="s-value" id="st-fps">{fps}</span></div>
+    <div class="stat-row"><span class="s-label">Dropped</span><span class="s-value" id="st-drop">{dropped_frames}</span></div>
   </div>
-</article>
-
-<!-- System Stats -->
-<article>
-  <strong>System</strong>
-  <div class="status-grid" style="margin-top:.5rem">
-    <span class="label">CPU</span>
-    <span class="value" id="st-cpu">{cpu_percent}%</span>
-    <span class="label">RAM</span>
-    <span class="value" id="st-ram">{ram_used} / {ram_total} MB ({ram_percent}%)</span>
-    <span class="label">CPU Temp</span>
-    <span class="value" id="st-ctemp">{cpu_temp}</span>
-    <span class="label">GPU Temp</span>
-    <span class="value" id="st-gtemp">{gpu_temp}</span>
+  <!-- System -->
+  <div class="stat-card">
+    <h4>System</h4>
+    <div class="stat-row"><span class="s-label">CPU</span><span class="s-value" id="st-cpu"><span class="s-pct">{cpu_percent}%</span> <span class="mini-bar"><span class="mini-bar-fill {cpu_bar_class}" style="width:{cpu_percent}%"></span></span></span></div>
+    <div class="stat-row"><span class="s-label">RAM</span><span class="s-value" id="st-ram"><span class="s-pct">{ram_percent}%</span> <span class="mini-bar"><span class="mini-bar-fill {ram_bar_class}" style="width:{ram_percent}%"></span></span> <small style="opacity:.35">{ram_used}/{ram_total} MB</small></span></div>
+    <hr class="section-sep">
+    <div class="stat-row"><span class="s-label">CPU Temp</span><span class="s-value {cpu_temp_class}" id="st-ctemp">{cpu_temp}</span></div>
+    <div class="stat-row"><span class="s-label">GPU Temp</span><span class="s-value {gpu_temp_class}" id="st-gtemp">{gpu_temp}</span></div>
+    <div class="stat-row throttle-row {throttle_hidden}" id="st-throttle-row"><span class="s-label" style="color:var(--warn)">Throttle</span><span class="s-value" id="st-throttle"><span class="badge off">{throttle}</span></span></div>
   </div>
-</article>
-
-<!-- DMX Protocol -->
-<details>
-  <summary>Video Effects</summary>
-  <div style="margin-top:.6rem">
-    <div class="video-params">
-      <div class="param-row">
-        <label>Contrast</label>
-        <input type="range" id="vp-contrast" min="-100" max="100" value="{vp_contrast}">
-        <span class="param-val" id="vp-contrast-val">{vp_contrast}</span>
+  <!-- DMX Control (full-width) -->
+  <div class="stat-card full">
+    <h4>DMX Control <small style="opacity:.35;font-weight:400;text-transform:none;letter-spacing:0">&mdash; {address}.{universe}</small> <span class="sig {dmx_sig_class}" id="st-dmx-sig" title="sACN signal"></span></h4>
+    <div class="dmx-ctrl">
+      <div>
+        <div class="stat-row"><span class="s-label">Mode</span><span class="s-value" id="st-mode">{play_mode} <span class="s-raw" id="st-mode-raw">DMX {dmx_playmode_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Volume</span><span class="s-value" id="st-vol">{volume_percent}% <span class="mini-bar"><span class="mini-bar-fill fill-accent" style="width:{volume_percent}%"></span></span> <span class="s-raw">DMX {volume_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Brightness</span><span class="s-value" id="st-bri">{brightness_percent}% <span class="mini-bar"><span class="mini-bar-fill fill-accent" style="width:{brightness_percent}%"></span></span> <span class="s-raw">DMX {brightness_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Speed</span><span class="s-value" id="vp-speed">{vp_speed}x <span class="s-raw" id="vp-speed-raw">DMX {dmx_speed_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Rotation</span><span class="s-value" id="vp-rotation">{vp_rotation}&deg; <span class="s-raw" id="vp-rotation-raw">DMX {dmx_rotation_raw}</span></span></div>
       </div>
-      <div class="param-row">
-        <label>Saturation</label>
-        <input type="range" id="vp-saturation" min="-100" max="100" value="{vp_saturation}">
-        <span class="param-val" id="vp-saturation-val">{vp_saturation}</span>
-      </div>
-      <div class="param-row">
-        <label>Gamma</label>
-        <input type="range" id="vp-gamma" min="-100" max="100" value="{vp_gamma}">
-        <span class="param-val" id="vp-gamma-val">{vp_gamma}</span>
-      </div>
-      <div class="param-row">
-        <label>Speed</label>
-        <input type="range" id="vp-speed" min="0.25" max="4" step="0.05" value="{vp_speed}">
-        <span class="param-val" id="vp-speed-val">{vp_speed}x</span>
-      </div>
-      <div class="param-row">
-        <label>Rotation</label>
-        <select id="vp-rotation" onchange="setVideoParam('rotation', this.value)">
-          <option value="0" {rot0_sel}>0&deg;</option>
-          <option value="90" {rot90_sel}>90&deg;</option>
-          <option value="180" {rot180_sel}>180&deg;</option>
-          <option value="270" {rot270_sel}>270&deg;</option>
-        </select>
-      </div>
-      <div class="param-row">
-        <label>Zoom</label>
-        <input type="range" id="vp-zoom" min="-2" max="2" step="0.05" value="{vp_zoom}">
-        <span class="param-val" id="vp-zoom-val">{vp_zoom}</span>
-      </div>
-      <div class="param-row">
-        <label>Pan X</label>
-        <input type="range" id="vp-pan_x" min="-1" max="1" step="0.02" value="{vp_pan_x}">
-        <span class="param-val" id="vp-pan_x-val">{vp_pan_x}</span>
-      </div>
-      <div class="param-row">
-        <label>Pan Y</label>
-        <input type="range" id="vp-pan_y" min="-1" max="1" step="0.02" value="{vp_pan_y}">
-        <span class="param-val" id="vp-pan_y-val">{vp_pan_y}</span>
+      <div>
+        <div class="stat-row"><span class="s-label">Contrast</span><span class="s-value" id="vp-contrast">{vp_contrast} <span class="s-raw" id="vp-contrast-raw">DMX {dmx_contrast_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Saturation</span><span class="s-value" id="vp-saturation">{vp_saturation} <span class="s-raw" id="vp-saturation-raw">DMX {dmx_saturation_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Gamma</span><span class="s-value" id="vp-gamma">{vp_gamma} <span class="s-raw" id="vp-gamma-raw">DMX {dmx_gamma_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Zoom</span><span class="s-value" id="vp-zoom">{vp_zoom} <span class="s-raw" id="vp-zoom-raw">DMX {dmx_zoom_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Pan X</span><span class="s-value" id="vp-pan_x">{vp_pan_x} <span class="s-raw" id="vp-pan_x-raw">DMX {dmx_pan_x_raw}</span></span></div>
+        <div class="stat-row"><span class="s-label">Pan Y</span><span class="s-value" id="vp-pan_y">{vp_pan_y} <span class="s-raw" id="vp-pan_y-raw">DMX {dmx_pan_y_raw}</span></span></div>
       </div>
     </div>
-    <button class="btn btn-outline" style="margin-top:.5rem;width:100%" onclick="resetVideoParams()">
-      Reset All Effects</button>
   </div>
-</details>
+</div>
 
 <!-- DMX Protocol -->
 <details>
@@ -322,6 +320,16 @@ _HTML_TEMPLATE = """\
       <input type="number" id="universe" name="universe" min="1" max="63999" value="{universe}">
       <label for="mediapath">Media Path</label>
       <input type="text" id="mediapath" name="mediapath" value="{mediapath}">
+      <label for="failmode">Fail Behavior</label>
+      <select id="failmode" name="failmode" style="padding:.35rem .5rem;margin-bottom:0">
+        <option value="hold" {fail_hold_sel}>Hold &mdash; keep last state</option>
+        <option value="blackout" {fail_blackout_sel}>Blackout &mdash; stop playback</option>
+      </select>
+      <label for="failosd">Signal Loss Message</label>
+      <select id="failosd" name="failosd" style="padding:.35rem .5rem;margin-bottom:0">
+        <option value="on" {fail_osd_on_sel}>On &mdash; show message on screen</option>
+        <option value="off" {fail_osd_off_sel}>Off &mdash; no message</option>
+      </select>
     </div>
     <button type="submit" class="btn btn-primary" style="margin-top:.6rem;width:100%">
       Save &amp; Restart Receiver</button>
@@ -401,14 +409,14 @@ function onDropToFolder(e, targetFolder) {{
   e.preventDefault();
   document.querySelectorAll('.dropzone.active').forEach(el => el.classList.remove('active'));
 
-  // External file drop (from desktop) — upload via FormData
+  // External file drop (from desktop) — add to pending list
   if (e.dataTransfer.files && e.dataTransfer.files.length > 0 && !dragData) {{
-    const fd = new FormData();
-    fd.append('folder', targetFolder);
-    for (const f of e.dataTransfer.files) fd.append('file', f);
-    fetch('/api/upload', {{ method: 'POST', body: fd }})
-      .then(() => {{ toast('Uploaded ' + e.dataTransfer.files.length + ' file(s)'); location.reload(); }})
-      .catch(() => toast('Upload failed', 'err'));
+    // Find the folder index from the dropzone id
+    const dz = e.target.closest('.dropzone');
+    const fidx = dz ? dz.id.replace('dz-', '') : null;
+    if (fidx !== null) {{
+      addToPending(parseInt(fidx), targetFolder, e.dataTransfer.files);
+    }}
     return;
   }}
 
@@ -504,47 +512,118 @@ function saveTxtFile() {{
     }});
 }}
 
-// ---------------------------------------------------------------------------
-// Video Parameters
-// ---------------------------------------------------------------------------
-function setVideoParam(key, value) {{
-  const body = {{}};
-  body[key] = parseFloat(value);
-  api('/api/video-params', body).then(d => {{
-    if (!d.ok) {{ toast(d.error||'Failed', 'err'); return; }}
-    // Update displayed values
-    for (const [k, v] of Object.entries(d)) {{
-      const valEl = document.getElementById('vp-' + k + '-val');
-      if (valEl) valEl.textContent = k === 'speed' ? v + 'x' : v;
-      const inp = document.getElementById('vp-' + k);
-      if (inp && inp.type === 'range') inp.value = v;
-    }}
-  }});
-}}
 
-// Wire up all range sliders with debounced input
-document.querySelectorAll('.param-row input[type=range]').forEach(inp => {{
-  let timer;
-  inp.addEventListener('input', () => {{
-    const key = inp.id.replace('vp-', '');
-    const valEl = document.getElementById(inp.id + '-val');
-    if (valEl) valEl.textContent = key === 'speed' ? inp.value + 'x' : inp.value;
-    clearTimeout(timer);
-    timer = setTimeout(() => setVideoParam(key, inp.value), 120);
-  }});
-}});
-
-function resetVideoParams() {{
-  api('/api/video-params', {{ reset: true }}).then(d => {{
-    if (d.ok) location.reload();
-    else toast(d.error||'Failed', 'err');
-  }});
-}}
 
 // Close modal on overlay click
 document.getElementById('txt-modal').addEventListener('click', function(e) {{
   if (e.target === this) closeTxtModal();
 }});
+
+// ---------------------------------------------------------------------------
+// Upload: File selection, preview, and upload
+// ---------------------------------------------------------------------------
+const pendingFiles = {{}};  // fidx -> {{ folder, files: File[] }}
+
+function formatSize(bytes) {{
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  return (bytes / 1073741824).toFixed(2) + ' GB';
+}}
+
+function onFilesSelected(input, folder, fidx) {{
+  if (input.files.length > 0) {{
+    addToPending(fidx, folder, input.files);
+    input.value = '';
+  }}
+}}
+
+function addToPending(fidx, folder, fileList) {{
+  if (!pendingFiles[fidx]) pendingFiles[fidx] = {{ folder, files: [] }};
+  for (const f of fileList) {{
+    // Avoid duplicates by name
+    if (!pendingFiles[fidx].files.some(e => e.name === f.name)) {{
+      pendingFiles[fidx].files.push(f);
+    }}
+  }}
+  renderPending(fidx);
+}}
+
+function removePending(fidx, idx) {{
+  if (pendingFiles[fidx]) {{
+    pendingFiles[fidx].files.splice(idx, 1);
+    renderPending(fidx);
+  }}
+}}
+
+function clearPending(fidx) {{
+  delete pendingFiles[fidx];
+  renderPending(fidx);
+}}
+
+function renderPending(fidx) {{
+  const container = document.getElementById('pf-' + fidx);
+  const actions = document.getElementById('ua-' + fidx);
+  const count = document.getElementById('uc-' + fidx);
+  if (!container) return;
+
+  const data = pendingFiles[fidx];
+  if (!data || data.files.length === 0) {{
+    container.innerHTML = '';
+    actions.style.display = 'none';
+    delete pendingFiles[fidx];
+    return;
+  }}
+
+  let html = '';
+  let totalSize = 0;
+  data.files.forEach((f, i) => {{
+    totalSize += f.size;
+    html += '<div class="pf-item">'
+          + '<span class="pf-name">' + f.name + '</span>'
+          + '<span class="pf-size">' + formatSize(f.size) + '</span>'
+          + '<button class="pf-remove" onclick="removePending(' + fidx + ',' + i + ')">&times;</button>'
+          + '</div>';
+  }});
+  container.innerHTML = html;
+  count.textContent = data.files.length + ' file(s), ' + formatSize(totalSize);
+  actions.style.display = 'flex';
+  document.getElementById('up-' + fidx).style.display = 'none';
+  document.getElementById('upb-' + fidx).style.width = '0%';
+}}
+
+function uploadPending(folder, fidx) {{
+  const data = pendingFiles[fidx];
+  if (!data || data.files.length === 0) return;
+
+  const fd = new FormData();
+  fd.append('folder', folder);
+  for (const f of data.files) fd.append('file', f);
+
+  const progressBar = document.getElementById('up-' + fidx);
+  const progressFill = document.getElementById('upb-' + fidx);
+  progressBar.style.display = 'block';
+  progressFill.style.width = '0%';
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/upload');
+  xhr.upload.onprogress = (e) => {{
+    if (e.lengthComputable) {{
+      progressFill.style.width = Math.round(e.loaded / e.total * 100) + '%';
+    }}
+  }};
+  xhr.onload = () => {{
+    if (xhr.status >= 200 && xhr.status < 300) {{
+      toast('Uploaded ' + data.files.length + ' file(s)');
+      clearPending(fidx);
+      location.reload();
+    }} else {{
+      toast('Upload failed', 'err');
+    }}
+  }};
+  xhr.onerror = () => toast('Upload failed', 'err');
+  xhr.send(fd);
+}}
 
 // Live status polling (no page reload)
 let _failCount = 0;
@@ -558,20 +637,67 @@ function refreshStatus() {{
   }}).then(d => {{
     _failCount = 0;
     document.getElementById('conn').className = 'conn ok';
+
+    // Helpers
+    function _barCls(pct) {{ return pct > 85 ? 'fill-err' : pct > 65 ? 'fill-warn' : 'fill-ok'; }}
+    function _tempCls(s) {{ var n=parseFloat(s); return n>80?'fill-err':n>70?'fill-warn':''; }}
+    function _bar(pct, cls) {{ return '<span class="mini-bar"><span class="mini-bar-fill '+cls+'" style="width:'+pct+'%"></span></span>'; }}
+
+    // Now Playing
     const badge = document.getElementById('st-badge');
     badge.textContent = d.paused ? 'Paused' : (d.playing ? 'Playing' : 'Stopped');
     badge.className = 'badge ' + (d.paused ? 'paused' : (d.playing ? 'on' : 'off'));
-    document.getElementById('st-file').textContent = d.current_file || '\u2014';
-    document.getElementById('st-mode').textContent = d.play_mode;
-    document.getElementById('st-vol').innerHTML = d.volume_percent + '% <small style="opacity:.45">DMX ' + d.volume + '</small>';
-    document.getElementById('st-bri').innerHTML = d.brightness_percent + '% <small style="opacity:.45">DMX ' + d.brightness + '</small>';
+    const fEl = document.getElementById('st-file');
+    const fname = d.current_file ? d.current_file.split('/').pop() : '\u2014';
+    fEl.textContent = fname; fEl.title = d.current_file || '';
     document.getElementById('st-res').textContent = d.resolution || '\u2014';
     document.getElementById('st-fps').textContent = d.fps ? d.fps + ' fps' : '\u2014';
-    document.getElementById('st-drop').textContent = d.dropped_frames != null ? d.dropped_frames : '0';
-    document.getElementById('st-cpu').textContent = d.cpu_percent + '%';
-    document.getElementById('st-ram').textContent = d.ram_used + ' / ' + d.ram_total + ' MB (' + d.ram_percent + '%)';
+    var drops = d.dropped_frames != null ? d.dropped_frames : 0;
+    var dropCls = drops > 1000 ? 'color:var(--err)' : drops > 100 ? 'color:var(--warn)' : '';
+    document.getElementById('st-drop').innerHTML = '<span style="'+dropCls+'">' + drops + '</span>';
+
+    // System
+    var cpuPct = parseFloat(d.cpu_percent) || 0;
+    var ramPct = parseFloat(d.ram_percent) || 0;
+    document.getElementById('st-cpu').innerHTML = '<span class="s-pct">' + d.cpu_percent + '%</span> ' + _bar(cpuPct, _barCls(cpuPct));
+    document.getElementById('st-ram').innerHTML = '<span class="s-pct">' + d.ram_percent + '%</span> ' + _bar(ramPct, _barCls(ramPct)) + ' <small style="opacity:.35">' + d.ram_used + '/' + d.ram_total + ' MB</small>';
+    var ctCls = _tempCls(d.cpu_temp); var gtCls = _tempCls(d.gpu_temp);
+    document.getElementById('st-ctemp').style.color = ctCls ? (ctCls==='fill-err'?'var(--err)':'var(--warn)') : '';
     document.getElementById('st-ctemp').textContent = d.cpu_temp;
+    document.getElementById('st-gtemp').style.color = gtCls ? (gtCls==='fill-err'?'var(--err)':'var(--warn)') : '';
     document.getElementById('st-gtemp').textContent = d.gpu_temp;
+    // Throttle (only show when active)
+    var tRow = document.getElementById('st-throttle-row');
+    if (d.throttle_active) {{
+      tRow.classList.remove('hidden');
+      document.getElementById('st-throttle').innerHTML = '<span class="badge off">' + d.throttle + '</span>';
+    }} else {{
+      tRow.classList.add('hidden');
+    }}
+    // DMX signal dot
+    var dmxSig = document.getElementById('st-dmx-sig');
+    dmxSig.className = 'sig ' + (d.dmx_active ? 'active' : 'inactive');
+
+    // DMX Control
+    document.getElementById('st-mode').innerHTML = d.play_mode + ' <span class="s-raw" id="st-mode-raw">DMX ' + (d.dmx_raw ? d.dmx_raw.playmode : '') + '</span>';
+    document.getElementById('st-vol').innerHTML = d.volume_percent + '% ' + _bar(d.volume_percent,'fill-accent') + ' <span class="s-raw">DMX ' + d.volume + '</span>';
+    document.getElementById('st-bri').innerHTML = d.brightness_percent + '% ' + _bar(d.brightness_percent,'fill-accent') + ' <span class="s-raw">DMX ' + d.brightness + '</span>';
+    if (d.video_params) {{
+      var vp = d.video_params;
+      var dr = d.dmx_raw || {{}};
+      var ve = function(id, v, rawId, rawVal) {{
+        var el = document.getElementById(id);
+        if(el) el.innerHTML = v + ' <span class="s-raw" id="' + rawId + '">DMX ' + (rawVal != null ? rawVal : '') + '</span>';
+      }};
+      ve('vp-contrast', vp.contrast, 'vp-contrast-raw', dr.contrast);
+      ve('vp-saturation', vp.saturation, 'vp-saturation-raw', dr.saturation);
+      ve('vp-gamma', vp.gamma, 'vp-gamma-raw', dr.gamma);
+      ve('vp-speed', vp.speed + 'x', 'vp-speed-raw', dr.speed);
+      ve('vp-rotation', vp.rotation + '\u00B0', 'vp-rotation-raw', dr.rotation);
+      ve('vp-zoom', vp.zoom, 'vp-zoom-raw', dr.zoom);
+      ve('vp-pan_x', vp.pan_x, 'vp-pan_x-raw', dr.pan_x);
+      ve('vp-pan_y', vp.pan_y, 'vp-pan_y-raw', dr.pan_y);
+    }}
   }}).catch(() => {{
     clearTimeout(tid);
     _failCount++;
@@ -694,6 +820,36 @@ class _WebHandler(BaseHTTPRequestHandler):
         except Exception:
             gpu_temp = "\u2014"
 
+        # Throttling status via vcgencmd
+        throttle_flags = []
+        try:
+            out = subprocess.check_output(
+                ["vcgencmd", "get_throttled"], timeout=2, text=True
+            )
+            val = int(out.strip().split("=")[1], 16)
+            if val & 0x1:
+                throttle_flags.append("Under-voltage!")
+            if val & 0x2:
+                throttle_flags.append("Freq capped")
+            if val & 0x4:
+                throttle_flags.append("Throttled")
+            if val & 0x8:
+                throttle_flags.append("Soft temp limit")
+            if val & 0x10000:
+                throttle_flags.append("Under-voltage occurred")
+            if val & 0x20000:
+                throttle_flags.append("Freq cap occurred")
+            if val & 0x40000:
+                throttle_flags.append("Throttling occurred")
+            if val & 0x80000:
+                throttle_flags.append("Soft temp limit occurred")
+        except Exception:
+            pass
+
+        throttle_active = bool(throttle_flags and any(
+            f in throttle_flags for f in ["Under-voltage!", "Freq capped", "Throttled", "Soft temp limit"]
+        ))
+
         return {
             "cpu_percent": cpu_percent,
             "ram_total": ram_total,
@@ -701,6 +857,8 @@ class _WebHandler(BaseHTTPRequestHandler):
             "ram_percent": ram_percent,
             "cpu_temp": cpu_temp,
             "gpu_temp": gpu_temp,
+            "throttle": ", ".join(throttle_flags) if throttle_flags else "None",
+            "throttle_active": throttle_active,
         }
 
     def _build_status(self) -> dict:
@@ -719,7 +877,28 @@ class _WebHandler(BaseHTTPRequestHandler):
             "dropped_frames": srv.player.dropped_frames,
             "resolution": srv.player.resolution,
             "dmx": {"address": srv.config.address, "universe": srv.config.universe},
+            "dmx_active": srv.receiver.is_receiving,
+            "dmx_receiving": srv.receiver.is_receiving,
+            "dmx_values_changed": srv.receiver.is_active,
+            "dmx_fail_mode": srv.config.dmx_fail_mode,
+            "dmx_fail_osd": srv.config.dmx_fail_osd,
+            "dmx_raw": {
+                "file": srv.receiver.channellist.get(0),
+                "folder": srv.receiver.channellist.get(1),
+                "playmode": srv.receiver.channellist.get(2),
+                "volume": srv.receiver.channellist.get(3),
+                "brightness": srv.receiver.channellist.get(4),
+                "contrast": srv.receiver.channellist.get(5),
+                "saturation": srv.receiver.channellist.get(6),
+                "gamma": srv.receiver.channellist.get(7),
+                "speed": srv.receiver.channellist.get(8),
+                "rotation": srv.receiver.channellist.get(9),
+                "zoom": srv.receiver.channellist.get(10),
+                "pan_x": srv.receiver.channellist.get(11),
+                "pan_y": srv.receiver.channellist.get(12),
+            },
             "mediapath": srv.config.mediapath,
+            "video_params": srv.player.video_params,
             **self._get_system_stats(),
         }
 
@@ -802,21 +981,28 @@ class _WebHandler(BaseHTTPRequestHandler):
                         '<p style="opacity:.4;font-size:.85rem;margin:.3rem 0">Empty folder</p>'
                     )
 
-                # Drop zone
+                # Combined drop/upload zone with file preview
                 parts.append(
-                    f'<div class="dropzone" ondragover="onDragOver(event)" '
+                    f'<div class="dropzone" id="dz-{fidx}" '
+                    f'ondragover="onDragOver(event)" '
                     f'ondragleave="onDragLeave(event)" '
                     f"ondrop=\"onDropToFolder(event,'{esc}')\">"
-                    f"Drop files here to move to <b>{fname}</b></div>"
-                )
-                # Upload
-                parts.append(
-                    f'<form class="upload-bar" method="post" action="/api/upload" '
-                    f'enctype="multipart/form-data">'
-                    f'<input type="hidden" name="folder" value="{fname}">'
-                    f'<input type="file" name="file" multiple>'
-                    f'<button type="submit" class="btn btn-primary btn-sm">Upload</button>'
-                    f"</form>"
+                    f'<span class="dz-icon">\U0001F4C1</span>'
+                    f"Drop files here or click to browse"
+                    f'<div class="dz-hint">Upload to <b>{fname}</b></div>'
+                    f'<input type="file" multiple '
+                    f"onchange=\"onFilesSelected(this, '{esc}', {fidx})\">"
+                    f"</div>"
+                    f'<div class="pending-files" id="pf-{fidx}"></div>'
+                    f'<div class="upload-actions" id="ua-{fidx}" style="display:none">'
+                    f'<button class="btn btn-primary btn-sm" '
+                    f"onclick=\"uploadPending('{esc}', {fidx})\">Upload</button>"
+                    f'<button class="btn btn-outline btn-sm" '
+                    f"onclick=\"clearPending({fidx})\">Clear</button>"
+                    f'<span class="upload-count" id="uc-{fidx}"></span>'
+                    f'<div class="upload-progress" id="up-{fidx}">'
+                    f'<div class="bar" id="upb-{fidx}"></div></div>'
+                    f"</div>"
                 )
                 parts.append("</div>")
             folders_html = "\n".join(parts)
@@ -833,9 +1019,38 @@ class _WebHandler(BaseHTTPRequestHandler):
 
         play_mode = "Pause" if status["paused"] else ("Loop" if status["loop"] else "Play once")
 
+        # Color-code helpers for initial render
+        cpu_pct = float(status["cpu_percent"])
+        ram_pct = float(status["ram_percent"])
+        cpu_bar_class = "fill-err" if cpu_pct > 85 else "fill-warn" if cpu_pct > 65 else "fill-ok"
+        ram_bar_class = "fill-err" if ram_pct > 85 else "fill-warn" if ram_pct > 65 else "fill-ok"
+
+        def _temp_class(temp_str: str) -> str:
+            try:
+                n = float(temp_str.replace("°C", ""))
+            except (ValueError, AttributeError):
+                return ""
+            if n > 80:
+                return "fill-err"
+            if n > 70:
+                return "fill-warn"
+            return ""
+
+        cpu_temp_class = _temp_class(status["cpu_temp"])
+        gpu_temp_class = _temp_class(status["gpu_temp"])
+        # Map to inline style for initial render
+        cpu_temp_style = (
+            'style="color:var(--err)"' if cpu_temp_class == "fill-err"
+            else 'style="color:var(--warn)"' if cpu_temp_class == "fill-warn"
+            else ""
+        )
+        gpu_temp_style = (
+            'style="color:var(--err)"' if gpu_temp_class == "fill-err"
+            else 'style="color:var(--warn)"' if gpu_temp_class == "fill-warn"
+            else ""
+        )
+
         vp = srv.player.video_params
-        rotation_sel = {0: "", 90: "", 180: "", 270: ""}
-        rotation_sel[vp["rotation"]] = 'selected="selected"'
 
         html = _HTML_TEMPLATE.format(
             message=message,
@@ -856,6 +1071,13 @@ class _WebHandler(BaseHTTPRequestHandler):
             ram_percent=status["ram_percent"],
             cpu_temp=status["cpu_temp"],
             gpu_temp=status["gpu_temp"],
+            throttle=status["throttle"],
+            throttle_hidden="" if status["throttle_active"] else "hidden",
+            dmx_sig_class="active" if status["dmx_active"] else "inactive",
+            cpu_bar_class=cpu_bar_class,
+            ram_bar_class=ram_bar_class,
+            cpu_temp_class=cpu_temp_style,
+            gpu_temp_class=gpu_temp_style,
             address=srv.config.address,
             universe=srv.config.universe,
             mediapath=srv.config.mediapath,
@@ -868,10 +1090,21 @@ class _WebHandler(BaseHTTPRequestHandler):
             vp_zoom=vp["zoom"],
             vp_pan_x=vp["pan_x"],
             vp_pan_y=vp["pan_y"],
-            rot0_sel=rotation_sel[0],
-            rot90_sel=rotation_sel[90],
-            rot180_sel=rotation_sel[180],
-            rot270_sel=rotation_sel[270],
+            # Raw DMX values
+            dmx_playmode_raw=status["dmx_raw"]["playmode"],
+            dmx_speed_raw=status["dmx_raw"]["speed"],
+            dmx_rotation_raw=status["dmx_raw"]["rotation"],
+            dmx_contrast_raw=status["dmx_raw"]["contrast"],
+            dmx_saturation_raw=status["dmx_raw"]["saturation"],
+            dmx_gamma_raw=status["dmx_raw"]["gamma"],
+            dmx_zoom_raw=status["dmx_raw"]["zoom"],
+            dmx_pan_x_raw=status["dmx_raw"]["pan_x"],
+            dmx_pan_y_raw=status["dmx_raw"]["pan_y"],
+            # Fail mode select
+            fail_hold_sel='selected' if srv.config.dmx_fail_mode == 'hold' else '',
+            fail_blackout_sel='selected' if srv.config.dmx_fail_mode == 'blackout' else '',
+            fail_osd_on_sel='selected' if srv.config.dmx_fail_osd else '',
+            fail_osd_off_sel='' if srv.config.dmx_fail_osd else 'selected',
         )
         self._send_html(html)
 
@@ -891,11 +1124,18 @@ class _WebHandler(BaseHTTPRequestHandler):
         if not new_mediapath.endswith("/"):
             new_mediapath += "/"
 
+        new_fail_mode = params.get("failmode", [srv.config.dmx_fail_mode])[0].strip()
+        if new_fail_mode not in ("hold", "blackout"):
+            new_fail_mode = "hold"
+        new_fail_osd = params.get("failosd", ["on" if srv.config.dmx_fail_osd else "off"])[0].strip() == "on"
+
         universe_changed = new_universe != srv.config.universe
 
         srv.config.address = new_address
         srv.config.universe = new_universe
         srv.config.mediapath = new_mediapath
+        srv.config.dmx_fail_mode = new_fail_mode
+        srv.config.dmx_fail_osd = new_fail_osd
         srv.receiver.channellist.__init__(new_address)
 
         if universe_changed:
@@ -1303,6 +1543,8 @@ class _WebHandler(BaseHTTPRequestHandler):
             "Address": str(config.address),
             "Universe": str(config.universe),
             "MediaPath": config.mediapath,
+            "FailMode": config.dmx_fail_mode,
+            "FailOSD": str(config.dmx_fail_osd),
         }
         parser["Web"] = {"Port": str(config.web_port)}
         try:
