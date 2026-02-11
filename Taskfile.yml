@@ -1,0 +1,47 @@
+version: "3"
+
+tasks:
+  start:
+    desc: Start the mediaserver service
+    cmds:
+      - sudo systemctl start mediaserver
+
+  stop:
+    desc: Stop the mediaserver service
+    cmds:
+      - sudo systemctl stop mediaserver
+
+  restart:
+    desc: Restart the mediaserver service
+    cmds:
+      - sudo systemctl restart mediaserver
+
+  status:
+    desc: Show mediaserver service status
+    cmds:
+      - systemctl status mediaserver --no-pager
+
+  logs:
+    desc: Show recent mediaserver logs
+    cmds:
+      - journalctl -u mediaserver -n 50 --no-pager
+
+  logs:follow:
+    desc: Follow mediaserver logs in real-time
+    cmds:
+      - journalctl -u mediaserver -f
+
+  test:
+    desc: Run all tests
+    cmds:
+      - poetry run pytest
+
+  lint:
+    desc: Run linter
+    cmds:
+      - poetry run ruff check src tests
+
+  dev:
+    desc: Run mediaserver directly (not as service)
+    cmds:
+      - poetry run mediaserver
