@@ -666,11 +666,11 @@ class Player:
         cached = manager.get_source_resolution(source_name)
         if cached:
             width, height = cached
-            log.info("Using cached resolution for '%s': %dx%d", source_name, width, height)
+            log.debug("Using cached resolution for '%s': %dx%d", source_name, width, height)
             return self._start_ndi_pipeline(manager, source_name, width, height)
 
         # No cached resolution — single-connect with inline probe
-        log.info("Connecting to '%s' (will probe resolution)...", source_name)
+        log.info("NDI connecting to '%s'...", source_name)
         first_frame: dict = {"width": 0, "height": 0, "ready": threading.Event()}
 
         def probe_callback(data: bytes, w: int, h: int) -> None:
@@ -681,20 +681,20 @@ class Player:
                 first_frame["ready"].set()
 
         if not manager.start_receiving(source_name, on_frame=probe_callback):
-            log.error("Failed to connect to NDI source '%s'", source_name)
+            log.warning("NDI connect failed for '%s'", source_name)
             self._start_ndi_reconnect_on_failure(source_name)
             return False
 
         # Wait for first frame (max 3 seconds)
         if not first_frame["ready"].wait(timeout=3.0):
-            log.error("Timeout waiting for NDI frames")
+            log.warning("NDI timeout probing '%s'", source_name)
             manager.stop_receiving()
             self._start_ndi_reconnect_on_failure(source_name)
             return False
 
         width = first_frame["width"]
         height = first_frame["height"]
-        log.info("Probed resolution: %dx%d", width, height)
+        log.debug("Probed resolution: %dx%d", width, height)
 
         # Now transition to piping mode WITHOUT disconnecting
         return self._start_ndi_pipeline(
@@ -816,12 +816,12 @@ class Player:
             if elapsed >= 5.0:
                 fps = stats_frames[0] / elapsed
                 qsize = self._ndi_frame_queue.qsize() if self._ndi_frame_queue else 0
-                log.info("NDI stats: %.1f fps received, queue=%d", fps, qsize)
+                log.debug("NDI stats: %.1f fps received, queue=%d", fps, qsize)
                 stats_start[0] = now
                 stats_frames[0] = 0
             
             if frames_queued[0] == 1:
-                log.info("First NDI frame queued (%d bytes, %dx%d)", len(data), w, h)
+                log.debug("First NDI frame queued (%d bytes, %dx%d)", len(data), w, h)
             last_frame_time[0] = now
             try:
                 self._ndi_frame_queue.put_nowait(data)
@@ -838,7 +838,7 @@ class Player:
 
         # Disconnect handler: clean up and start reconnect loop
         def on_disconnect() -> None:
-            log.warning("NDI source disconnected")
+            log.debug("NDI on_disconnect callback fired")
             threading.Thread(target=self._handle_ndi_disconnect, daemon=True, name="NDI-Reconnect-Trigger").start()
 
         # Audio callback: start audio mpv on first frame, then queue PCM data
@@ -932,7 +932,7 @@ class Player:
             # Check frame timeout
             elapsed = time.time() - self._ndi_last_frame_time
             if elapsed > TIMEOUT:
-                log.warning("NDI frame timeout (%.1fs) — triggering reconnect", elapsed)
+                log.debug("NDI frame timeout (%.1fs)", elapsed)
                 threading.Thread(target=self._handle_ndi_disconnect, daemon=True, name="NDI-Reconnect-Trigger").start()
                 break
         log.debug("NDI watchdog stopped")
@@ -943,7 +943,7 @@ class Player:
         stats_start = time.time()
         stats_frames = 0
         fd: int | None = None
-        log.info("NDI writer thread started")
+        log.debug("NDI writer thread started")
 
         try:
             # Open FIFO for writing (blocks until mpv opens for reading)
@@ -955,7 +955,7 @@ class Player:
             except OSError:
                 pass
             self._ndi_pipe_fd = fd
-            log.info("NDI FIFO opened for writing: %s", self._ndi_fifo_path)
+            log.debug("NDI FIFO opened for writing: %s", self._ndi_fifo_path)
         except OSError as exc:
             log.error("Failed to open FIFO for writing: %s", exc)
             threading.Thread(target=self._handle_ndi_disconnect, daemon=True, name="NDI-Reconnect-Trigger").start()
@@ -988,12 +988,12 @@ class Player:
                 if elapsed >= 5.0:
                     fps = stats_frames / elapsed
                     qsize = self._ndi_frame_queue.qsize() if self._ndi_frame_queue else 0
-                    log.info("NDI write stats: %.1f fps written, queue=%d", fps, qsize)
+                    log.debug("NDI write stats: %.1f fps written, queue=%d", fps, qsize)
                     stats_start = now
                     stats_frames = 0
 
                 if frames_written == 1:
-                    log.info("First NDI frame written to mpv (%d bytes, %.2fs)", len(data), write_time)
+                    log.debug("First NDI frame written to mpv (%d bytes, %.2fs)", len(data), write_time)
                 elif frames_written <= 5 or frames_written % 30 == 0:
                     log.debug("NDI frame %d written (%.3fs)", frames_written, write_time)
 
@@ -1006,7 +1006,7 @@ class Player:
 
     def _ndi_audio_writer_loop(self) -> None:
         """Background thread: write audio PCM data from queue to audio mpv stdin."""
-        log.info("NDI audio writer thread started")
+        log.debug("NDI audio writer thread started")
         while not self._ndi_audio_writer_stop.is_set():
             try:
                 data = self._ndi_audio_queue.get(timeout=0.1)
@@ -1133,7 +1133,7 @@ class Player:
         # Tell main mpv to stop (go back to idle black screen)
         self._mpv_cmd("stop")
 
-        log.info("NDI playback stopped")
+        log.debug("NDI playback stopped")
 
     # ----- NDI Reconnect -----
 
@@ -1163,7 +1163,7 @@ class Player:
         """Start the reconnect loop after an initial connection failure."""
         if self._ndi_desired_source != source_name:
             return  # Something else cancelled us
-        log.info("NDI initial connection failed — will auto-reconnect '%s'", source_name)
+        log.info("NDI source not ready — will keep trying '%s'", source_name)
         self._ndi_osd(f"NDI Source Not Ready: {source_name}", duration=3.0)
 
         if self._ndi_reconnect_thread is not None and self._ndi_reconnect_thread.is_alive():
@@ -1183,7 +1183,7 @@ class Player:
         if not source_name:
             return
 
-        log.warning("NDI disconnect detected for '%s' — will auto-reconnect", source_name)
+        log.warning("NDI source '%s' lost — reconnecting", source_name)
         self._ndi_desired_source = source_name
 
         # Clean up the broken pipeline
@@ -1211,12 +1211,12 @@ class Player:
 
         manager = get_manager()
         attempt = 0
-        log.info("NDI auto-reconnect started for '%s'", source_name)
+        log.debug("NDI reconnect loop started for '%s'", source_name)
 
         while not self._ndi_reconnect_stop.wait(timeout=3.0):
             # Check if we still want this source
             if self._ndi_desired_source != source_name:
-                log.info("NDI reconnect: desired source changed, exiting")
+                log.info("NDI reconnect: desired source changed")
                 break
 
             # Safety: if somehow we're already playing, stop
@@ -1230,7 +1230,7 @@ class Player:
             if not any(s.name == source_name for s in sources):
                 if attempt == 1 or attempt % 10 == 0:
                     log.info(
-                        "NDI reconnect: '%s' not found (attempt %d)",
+                        "NDI waiting for '%s' (attempt %d)",
                         source_name, attempt,
                     )
                 if attempt % 5 == 0:
@@ -1239,7 +1239,7 @@ class Player:
 
             # Source found — attempt connection
             log.info(
-                "NDI reconnect: '%s' discovered, connecting (attempt %d)",
+                "NDI source '%s' found, reconnecting (attempt %d)",
                 source_name, attempt,
             )
             self._ndi_osd("NDI Reconnecting...", duration=2.0)
@@ -1247,10 +1247,10 @@ class Player:
             try:
                 success = self._try_ndi_reconnect(manager, source_name)
                 if success:
-                    log.info("NDI reconnect: successfully reconnected to '%s'", source_name)
+                    log.info("NDI reconnected to '%s'", source_name)
                     self._ndi_osd(f"NDI Reconnected: {source_name}", duration=3.0)
                     return  # Thread exits naturally
-                log.warning("NDI reconnect: connection attempt %d failed, will retry", attempt)
+                log.warning("NDI reconnect attempt %d failed, retrying", attempt)
             except Exception as exc:
                 log.error("NDI reconnect error: %s", exc)
                 try:
@@ -1258,7 +1258,7 @@ class Player:
                 except Exception:
                     pass
 
-        log.info("NDI reconnect loop ended for '%s'", source_name)
+        log.debug("NDI reconnect loop ended for '%s'", source_name)
 
     def _try_ndi_reconnect(self, manager: "NDIManager", source_name: str) -> bool:
         """Single reconnect attempt — probe resolution and start pipeline.
@@ -1269,7 +1269,7 @@ class Player:
         cached = manager.get_source_resolution(source_name)
         if cached:
             width, height = cached
-            log.info("NDI reconnect: cached resolution %dx%d", width, height)
+            log.debug("NDI reconnect: using cached resolution %dx%d", width, height)
             return self._start_ndi_pipeline(manager, source_name, width, height)
 
         # Probe resolution from live frames
@@ -1291,7 +1291,7 @@ class Player:
             return False
 
         width, height = first_frame["width"], first_frame["height"]
-        log.info("NDI reconnect: probed resolution %dx%d", width, height)
+        log.debug("NDI reconnect: probed resolution %dx%d", width, height)
         return self._start_ndi_pipeline(
             manager, source_name, width, height, already_connected=True,
         )

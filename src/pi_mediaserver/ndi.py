@@ -54,7 +54,7 @@ _ndi_lib = _load_ndi_library()
 NDI_AVAILABLE = _ndi_lib is not None
 
 if NDI_AVAILABLE:
-    log.info("NDI SDK loaded successfully")
+    log.debug("NDI SDK loaded successfully")
 else:
     # This is fine - NDI is optional
     pass
@@ -427,9 +427,9 @@ class NDIManager:
                     added = set(new_names) - set(old_names)
                     removed = set(old_names) - set(new_names)
                     if added:
-                        log.info("NDI sources added: %s", added)
+                        log.debug("NDI sources added: %s", added)
                     if removed:
-                        log.info("NDI sources removed: %s", removed)
+                        log.debug("NDI sources removed: %s", removed)
 
                     # Build new list, reusing existing info objects
                     old_map = {s.name: s for s in self._sources}
@@ -531,7 +531,7 @@ class NDIManager:
                     _ndi_lib.NDIlib_recv_free_video_v2(
                         probe_recv, ctypes.byref(video_frame)
                     )
-                    log.info("Probed '%s': %dx%d", info.name, info.width, info.height)
+                    log.debug("Probed '%s': %dx%d", info.name, info.width, info.height)
                     break
                 elif frame_type == NDI_FRAME_TYPE_ERROR:
                     info.probed = True
@@ -539,7 +539,7 @@ class NDIManager:
             else:
                 # Timeout — mark probed anyway to avoid re-probe loop
                 info.probed = True
-                log.warning("Probe timeout for '%s'", info.name)
+                log.debug("Probe timeout for '%s'", info.name)
         finally:
             _ndi_lib.NDIlib_recv_destroy(probe_recv)
 
@@ -628,10 +628,10 @@ class NDIManager:
             # Use configured bandwidth (lowest for WiFi, highest for Ethernet)
             if self._bandwidth == "highest":
                 recv_settings.bandwidth = NDI_RECV_BANDWIDTH_HIGHEST
-                log.info("Using HIGHEST bandwidth")
+                log.debug("Using HIGHEST bandwidth")
             else:
                 recv_settings.bandwidth = NDI_RECV_BANDWIDTH_LOWEST
-                log.info("Using LOWEST bandwidth")
+                log.debug("Using LOWEST bandwidth")
             recv_settings.allow_video_fields = True
             recv_settings.p_ndi_recv_name = b"Pi-Medienserver"
 
@@ -651,7 +651,7 @@ class NDIManager:
             hw_accel.p_data = b'<ndi_hwaccel enabled="true"/>'
             _ndi_lib.NDIlib_recv_send_metadata(self._receiver, ctypes.byref(hw_accel))
 
-            log.info("Connecting to '%s'...", source_name)
+            log.debug("Connecting to '%s'...", source_name)
 
             # Start receive thread
             self._stop_event.clear()
@@ -853,7 +853,7 @@ class NDIManager:
                     log.debug("NDI status change")
 
                 elif frame_type == NDI_FRAME_TYPE_SOURCE_CHANGE:
-                    log.info("NDI source changed")
+                    log.debug("NDI source changed")
 
                 elif frame_type == NDI_FRAME_TYPE_NONE:
                     # Timeout with no frame - normal, just loop again

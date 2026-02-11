@@ -161,7 +161,7 @@ class Server:
             def _start_ndi() -> None:
                 try:
                     if not self.player.play_ndi(source_name):
-                        log.error("Failed to play NDI source: %s", source_name)
+                        log.debug("NDI play_ndi returned False for: %s", source_name)
                 finally:
                     self._ndi_starting = False
 

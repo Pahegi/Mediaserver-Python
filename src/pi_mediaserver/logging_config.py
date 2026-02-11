@@ -28,13 +28,13 @@ class ColoredFormatter(logging.Formatter):
         level = record.levelname
         name = record.name.replace("pi_mediaserver.", "")
         message = record.getMessage()
-        
+
         if color:
             return f"{timestamp} {color}[{level}]{self.RESET} {self.BOLD}{name}:{self.RESET} {message}"
         return f"{timestamp} [{level}] {name}: {message}"
 
 
-def setup_logging(level: int = logging.DEBUG) -> None:
+def setup_logging(level: int = logging.INFO) -> None:
     """Configure logging for the application.
     
     Args:

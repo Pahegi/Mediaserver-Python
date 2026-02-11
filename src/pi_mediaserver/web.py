@@ -533,7 +533,7 @@ function onDropToFolder(e, targetFolder) {{
 // File: Rename
 // ---------------------------------------------------------------------------
 function startRename(folder, oldName) {{
-  const cell = document.getElementById('name-' + CSS.escape(folder) + '-' + CSS.escape(oldName));
+  const cell = document.getElementById('name-' + folder + '-' + oldName);
   if (!cell) return;
   const input = document.createElement('input');
   input.type = 'text'; input.value = oldName; input.className = 'rename-input';
