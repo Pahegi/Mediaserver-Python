@@ -12,7 +12,7 @@ Wants=network-online.target
 Type=notify
 User=pi
 WorkingDirectory=/home/pi/Mediaserver-Python
-ExecStart=/home/pi/Mediaserver-Python/.venv/bin/mediaserver
+ExecStart=/home/pi/.local/bin/poetry run mediaserver
 
 # Auto-restart on crash / exit
 Restart=always

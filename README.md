@@ -174,7 +174,7 @@ sudo reboot
 ```bash
 crontab -e
 # Add:
-@reboot sleep 10 && cd /home/pi/Mediaserver-Python && /home/pi/Mediaserver-Python/.venv/bin/mediaserver
+@reboot sleep 10 && cd /home/pi/Mediaserver-Python && /home/pi/.local/bin/poetry run mediaserver
 ```
 
 ### SSH Usage

@@ -52,7 +52,8 @@ WDCONF
 # 4. Enable and start watchdog service
 echo "Enabling watchdog service..."
 systemctl enable watchdog
-systemctl restart watchdog
+systemctl stop watchdog 2>/dev/null || true
+systemctl start watchdog
 
 echo ""
 echo "=== Done ==="
