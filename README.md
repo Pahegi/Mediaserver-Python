@@ -134,30 +134,39 @@ mediaserver
 poetry run python -m pi_mediaserver.main
 ```
 
-### Autostart (systemd)
+### Autostart (systemd) — recommended
+
+The included service file uses `Type=notify` with a systemd watchdog — the
+server pings systemd every 2 seconds and gets auto-restarted if it stops
+responding for 30 s.
 
 ```bash
-sudo tee /etc/systemd/system/mediaserver.service << 'EOF'
-[Unit]
-Description=Pi Medienserver
-After=network-online.target
-Wants=network-online.target
+# Copy the service file
+sudo cp config/mediaserver.service /etc/systemd/system/
 
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/Mediaserver-Python
-ExecStart=/home/pi/Mediaserver-Python/.venv/bin/mediaserver
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
+# Ensure the pi user can access the GPU
 sudo usermod -aG video pi
+
+# Enable and start
 sudo systemctl daemon-reload
 sudo systemctl enable --now mediaserver
+
+# Check status / logs
+sudo systemctl status mediaserver
+journalctl -u mediaserver -f
+```
+
+### Hardware Watchdog (optional)
+
+The Pi 5 has a built-in hardware watchdog. Combined with the systemd service
+watchdog this gives **two layers** of resilience:
+
+1. **Process hang** → systemd kills & restarts the mediaserver within 30 s
+2. **System hang** → hardware watchdog reboots the entire Pi within 15 s
+
+```bash
+sudo bash config/setup-watchdog.sh
+sudo reboot
 ```
 
 ### Autostart (crontab alternative)
@@ -224,7 +233,9 @@ Mediaserver-Python/
 ├── LICENSE                     # GPL-3.0
 ├── features.txt                # Feature backlog / research notes
 ├── config/
-│   └── config.txt              # Default config template
+│   ├── config.txt              # Default config template
+│   ├── mediaserver.service     # systemd unit file (Type=notify + watchdog)
+│   └── setup-watchdog.sh       # Hardware watchdog setup script
 ├── fixtures/                   # grandMA2 fixture profiles
 │   ├── ..._jekyll@03.xml
 │   └── ..._rocky@04.xml
@@ -249,6 +260,7 @@ Mediaserver-Python/
 |--------|------|-------------|
 | GET | `/` | Web dashboard |
 | GET | `/api/status` | Playback status JSON |
+| GET | `/api/health` | Health check (always returns `{"ok": true}`) |
 | GET | `/api/folders` | Media folder listing JSON |
 | GET | `/api/video-params` | Current video effect values |
 | GET | `/api/file/content?folder=X&file=Y` | Read `.txt` file contents |

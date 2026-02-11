@@ -2,22 +2,52 @@
 
 Uses python-mpv with idle mode to keep a single player instance alive,
 swapping media via property API for minimal startup latency.
+Includes automatic mpv recovery — if the mpv process dies, the player
+re-creates it and restores all cached state.
 """
 
 from __future__ import annotations
 
+import threading
+
 import mpv
+
+# Maximum consecutive mpv errors before giving up on recovery
+_MAX_ERRORS = 5
 
 
 class Player:
     """Media player wrapping mpv for low-latency video/audio/image playback."""
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._error_count: int = 0
+        self._current_path: str = ""
+        self._loop: bool = False
+        self._paused: bool = False
+        self._volume: int = 255
+        self._brightness: int = 255
+        # Video effect parameters (web-controlled, not DMX)
+        self._contrast: int = 0
+        self._saturation: int = 0
+        self._gamma: int = 0
+        self._speed: float = 1.0
+        self._rotation: int = 0  # 0, 90, 180, 270
+        self._zoom: float = 0.0  # mpv video-zoom (log scale, 0 = 1x)
+        self._pan_x: float = 0.0
+        self._pan_y: float = 0.0
+        self._player: mpv.MPV = self._create_mpv()
+
+    # ----- mpv lifecycle helpers -----
+
+    @staticmethod
+    def _create_mpv() -> mpv.MPV:
+        """Create and return a fresh mpv instance."""
         def _log(loglevel, component, message):
             if loglevel in ("error", "fatal"):
                 print(f"[mpv/{component}] {loglevel}: {message}")
 
-        self._player = mpv.MPV(
+        return mpv.MPV(
             fullscreen=True,
             # Pi5: HEVC hw decode via DRM
             hwdec="drm",
@@ -44,20 +74,65 @@ class Player:
             log_handler=_log,
             loglevel="warn",
         )
-        self._current_path: str = ""
-        self._loop: bool = False
-        self._paused: bool = False
-        self._volume: int = 255
-        self._brightness: int = 255
-        # Video effect parameters (web-controlled, not DMX)
-        self._contrast: int = 0
-        self._saturation: int = 0
-        self._gamma: int = 0
-        self._speed: float = 1.0
-        self._rotation: int = 0  # 0, 90, 180, 270
-        self._zoom: float = 0.0  # mpv video-zoom (log scale, 0 = 1x)
-        self._pan_x: float = 0.0
-        self._pan_y: float = 0.0
+
+    def _mpv_set(self, attr: str, value: object) -> None:
+        """Safely set an mpv property. Attempts recovery on failure."""
+        try:
+            setattr(self._player, attr, value)
+            self._error_count = 0
+        except Exception as exc:
+            self._error_count += 1
+            print(f"[Player] mpv.{attr} failed ({self._error_count}): {exc}")
+            if self._error_count <= _MAX_ERRORS:
+                self._try_recover()
+
+    def _mpv_cmd(self, *args: object) -> None:
+        """Safely run an mpv command. Attempts recovery on failure."""
+        try:
+            self._player.command(*args)
+            self._error_count = 0
+        except Exception as exc:
+            self._error_count += 1
+            print(f"[Player] mpv command {args} failed ({self._error_count}): {exc}")
+            if self._error_count <= _MAX_ERRORS:
+                self._try_recover()
+
+    def _try_recover(self) -> None:
+        """Attempt to tear down and recreate the mpv instance."""
+        with self._lock:
+            print("[Player] Attempting mpv recovery...")
+            try:
+                self._player.terminate()
+            except Exception:
+                pass
+            try:
+                self._player = self._create_mpv()
+                self._restore_state()
+                self._error_count = 0
+                print("[Player] mpv recovered successfully")
+            except Exception as exc:
+                print(f"[Player] mpv recovery failed: {exc}")
+
+    def _restore_state(self) -> None:
+        """Push all cached state back into the fresh mpv instance."""
+        try:
+            self._player.volume = round(self._volume * 100 / 255)
+            self._player.brightness = round(self._brightness * 100 / 255) - 100
+            self._player.contrast = self._contrast
+            self._player.saturation = self._saturation
+            self._player.gamma = self._gamma
+            self._player.speed = self._speed
+            self._player.video_rotate = str(self._rotation)
+            self._player.video_zoom = self._zoom
+            self._player.video_pan_x = self._pan_x
+            self._player.video_pan_y = self._pan_y
+            self._player.loop_file = "inf" if self._loop else "no"
+            if self._current_path:
+                self._player.play(self._current_path)
+                if self._paused:
+                    self._player.pause = True
+        except Exception as exc:
+            print(f"[Player] state restore failed: {exc}")
 
     # ----- Volume -----
 
@@ -73,7 +148,7 @@ class Player:
         if clamped == self._volume:
             return
         self._volume = clamped
-        self._player.volume = round(clamped * 100 / 255)
+        self._mpv_set("volume", round(clamped * 100 / 255))
 
     @property
     def volume_percent(self) -> int:
@@ -91,7 +166,7 @@ class Player:
     def loop(self, enabled: bool) -> None:
         """Set loop state. Can be changed during playback."""
         self._loop = enabled
-        self._player.loop_file = "inf" if enabled else "no"
+        self._mpv_set("loop_file", "inf" if enabled else "no")
 
     # ----- Pause -----
 
@@ -106,7 +181,7 @@ class Player:
         if value == self._paused:
             return
         self._paused = value
-        self._player.pause = value
+        self._mpv_set("pause", value)
         print(f"Playback {'paused' if value else 'resumed'}")
 
     # ----- Brightness -----
@@ -124,7 +199,7 @@ class Player:
             return
         self._brightness = clamped
         # Map 0-255 → -100..0  (0=black, 255=normal)
-        self._player.brightness = round(clamped * 100 / 255) - 100
+        self._mpv_set("brightness", round(clamped * 100 / 255) - 100)
 
     @property
     def brightness_percent(self) -> int:
@@ -144,7 +219,7 @@ class Player:
         if clamped == self._contrast:
             return
         self._contrast = clamped
-        self._player.contrast = clamped
+        self._mpv_set("contrast", clamped)
 
     @property
     def saturation(self) -> int:
@@ -157,7 +232,7 @@ class Player:
         if clamped == self._saturation:
             return
         self._saturation = clamped
-        self._player.saturation = clamped
+        self._mpv_set("saturation", clamped)
 
     @property
     def gamma(self) -> int:
@@ -170,7 +245,7 @@ class Player:
         if clamped == self._gamma:
             return
         self._gamma = clamped
-        self._player.gamma = clamped
+        self._mpv_set("gamma", clamped)
 
     @property
     def speed(self) -> float:
@@ -183,7 +258,7 @@ class Player:
         if clamped == self._speed:
             return
         self._speed = clamped
-        self._player.speed = clamped
+        self._mpv_set("speed", clamped)
 
     @property
     def rotation(self) -> int:
@@ -198,7 +273,7 @@ class Player:
         if closest == self._rotation:
             return
         self._rotation = closest
-        self._player.video_rotate = str(closest)
+        self._mpv_set("video_rotate", str(closest))
 
     @property
     def zoom(self) -> float:
@@ -211,7 +286,7 @@ class Player:
         if clamped == self._zoom:
             return
         self._zoom = clamped
-        self._player.video_zoom = clamped
+        self._mpv_set("video_zoom", clamped)
 
     @property
     def pan_x(self) -> float:
@@ -224,7 +299,7 @@ class Player:
         if clamped == self._pan_x:
             return
         self._pan_x = clamped
-        self._player.video_pan_x = clamped
+        self._mpv_set("video_pan_x", clamped)
 
     @property
     def pan_y(self) -> float:
@@ -237,7 +312,7 @@ class Player:
         if clamped == self._pan_y:
             return
         self._pan_y = clamped
-        self._player.video_pan_y = clamped
+        self._mpv_set("video_pan_y", clamped)
 
     @property
     def video_params(self) -> dict:
@@ -275,17 +350,24 @@ class Player:
         """
         self.loop = loop
         self._paused = False
-        self._player.pause = False
+        self._mpv_set("pause", False)
         self._current_path = path
-        self._player.play(path)
+        try:
+            self._player.play(path)
+            self._error_count = 0
+        except Exception as exc:
+            self._error_count += 1
+            print(f"[Player] play() failed ({self._error_count}): {exc}")
+            if self._error_count <= _MAX_ERRORS:
+                self._try_recover()
         print(f"Playing '{path}' | loop={'on' if loop else 'off'}")
 
     def stop(self) -> None:
         """Stop playback (mpv stays alive in idle mode)."""
         if self._current_path:
             self._paused = False
-            self._player.pause = False
-            self._player.command("stop")
+            self._mpv_set("pause", False)
+            self._mpv_cmd("stop")
             self._current_path = ""
             print("Playback stopped")
 

@@ -1,0 +1,37 @@
+# Pi Medienserver — systemd unit file
+# Copy to /etc/systemd/system/mediaserver.service, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now mediaserver
+
+[Unit]
+Description=Pi Medienserver (DMX/sACN media server)
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=pi
+WorkingDirectory=/home/pi/Mediaserver-Python
+ExecStart=/home/pi/Mediaserver-Python/.venv/bin/mediaserver
+
+# Auto-restart on crash / exit
+Restart=always
+RestartSec=3
+
+# Systemd watchdog — service must ping within this interval or gets killed
+WatchdogSec=30
+
+# Grant enough time for mpv DRM init
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+# Env: ensure mpv finds DRM device without a display server
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+
+# Logging to journalctl
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mediaserver
+
+[Install]
+WantedBy=multi-user.target

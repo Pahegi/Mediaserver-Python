@@ -1,21 +1,10 @@
 """Tests for pi_mediaserver.dmx."""
 
 from pi_mediaserver.dmx import (
-    CH_BRIGHTNESS,
-    CH_CONTRAST,
-    CH_GAMMA,
-    CH_PAN_X,
-    CH_PAN_Y,
-    CH_ROTATION,
-    CH_SATURATION,
-    CH_SPEED,
-    CH_VOLUME,
-    CH_ZOOM,
     LOOP_THRESHOLD,
     MODE_LOOP,
     MODE_PAUSE,
     MODE_PLAY,
-    NUM_CHANNELS,
     PAUSE_THRESHOLD,
     ROTATION_180,
     ROTATION_270,

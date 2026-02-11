@@ -733,44 +733,60 @@ class _WebHandler(BaseHTTPRequestHandler):
     # ----- GET -----
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path == "/":
-            self._serve_index()
-        elif self.path == "/api/status":
-            self._serve_json(self._build_status())
-        elif self.path == "/api/folders":
-            self._serve_json(self._build_folders())
-        elif self.path.startswith("/api/file/content"):
-            self._handle_read_file()
-        elif self.path == "/api/video-params":
-            self._serve_json({"ok": True, **self.server_ref.player.video_params})
-        else:
-            self.send_error(404)
+        try:
+            if self.path == "/":
+                self._serve_index()
+            elif self.path == "/api/status":
+                self._serve_json(self._build_status())
+            elif self.path == "/api/folders":
+                self._serve_json(self._build_folders())
+            elif self.path.startswith("/api/file/content"):
+                self._handle_read_file()
+            elif self.path == "/api/video-params":
+                self._serve_json({"ok": True, **self.server_ref.player.video_params})
+            elif self.path == "/api/health":
+                self._serve_json({"ok": True, "status": "running"})
+            else:
+                self.send_error(404)
+        except Exception as exc:
+            self._try_error_response(exc)
 
     # ----- POST -----
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path == "/config":
-            self._handle_config_update()
-        elif self.path == "/api/upload":
-            self._handle_upload()
-        elif self.path == "/api/rename":
-            self._handle_rename()
-        elif self.path == "/api/move":
-            self._handle_move()
-        elif self.path == "/api/delete":
-            self._handle_delete()
-        elif self.path == "/api/folder/create":
-            self._handle_folder_create()
-        elif self.path == "/api/folder/rename":
-            self._handle_folder_rename()
-        elif self.path == "/api/folder/delete":
-            self._handle_folder_delete()
-        elif self.path == "/api/file/content":
-            self._handle_write_file()
-        elif self.path == "/api/video-params":
-            self._handle_video_params()
-        else:
-            self.send_error(404)
+        try:
+            if self.path == "/config":
+                self._handle_config_update()
+            elif self.path == "/api/upload":
+                self._handle_upload()
+            elif self.path == "/api/rename":
+                self._handle_rename()
+            elif self.path == "/api/move":
+                self._handle_move()
+            elif self.path == "/api/delete":
+                self._handle_delete()
+            elif self.path == "/api/folder/create":
+                self._handle_folder_create()
+            elif self.path == "/api/folder/rename":
+                self._handle_folder_rename()
+            elif self.path == "/api/folder/delete":
+                self._handle_folder_delete()
+            elif self.path == "/api/file/content":
+                self._handle_write_file()
+            elif self.path == "/api/video-params":
+                self._handle_video_params()
+            else:
+                self.send_error(404)
+        except Exception as exc:
+            self._try_error_response(exc)
+
+    def _try_error_response(self, exc: Exception) -> None:
+        """Try to send a 500 JSON error. Swallow if the connection is broken."""
+        print(f"[Web] request error on {self.path}: {exc}")
+        try:
+            self._serve_json({"ok": False, "error": "Internal server error"}, code=500)
+        except Exception:
+            pass
 
     # =====================================================================
     # Status helpers
@@ -863,44 +879,48 @@ class _WebHandler(BaseHTTPRequestHandler):
 
     def _build_status(self) -> dict:
         srv = self.server_ref
-        return {
-            "playing": srv.player.is_playing,
-            "paused": srv.player.paused,
-            "current_file": srv.player.current_path,
-            "loop": srv.player.loop,
-            "play_mode": "paused" if srv.player.paused else ("loop" if srv.player.loop else "play"),
-            "volume": srv.player.volume,
-            "volume_percent": srv.player.volume_percent,
-            "brightness": srv.player.brightness,
-            "brightness_percent": srv.player.brightness_percent,
-            "fps": srv.player.fps,
-            "dropped_frames": srv.player.dropped_frames,
-            "resolution": srv.player.resolution,
-            "dmx": {"address": srv.config.address, "universe": srv.config.universe},
-            "dmx_active": srv.receiver.is_receiving,
-            "dmx_receiving": srv.receiver.is_receiving,
-            "dmx_values_changed": srv.receiver.is_active,
-            "dmx_fail_mode": srv.config.dmx_fail_mode,
-            "dmx_fail_osd": srv.config.dmx_fail_osd,
-            "dmx_raw": {
-                "file": srv.receiver.channellist.get(0),
-                "folder": srv.receiver.channellist.get(1),
-                "playmode": srv.receiver.channellist.get(2),
-                "volume": srv.receiver.channellist.get(3),
-                "brightness": srv.receiver.channellist.get(4),
-                "contrast": srv.receiver.channellist.get(5),
-                "saturation": srv.receiver.channellist.get(6),
-                "gamma": srv.receiver.channellist.get(7),
-                "speed": srv.receiver.channellist.get(8),
-                "rotation": srv.receiver.channellist.get(9),
-                "zoom": srv.receiver.channellist.get(10),
-                "pan_x": srv.receiver.channellist.get(11),
-                "pan_y": srv.receiver.channellist.get(12),
-            },
-            "mediapath": srv.config.mediapath,
-            "video_params": srv.player.video_params,
-            **self._get_system_stats(),
-        }
+        try:
+            return {
+                "playing": srv.player.is_playing,
+                "paused": srv.player.paused,
+                "current_file": srv.player.current_path,
+                "loop": srv.player.loop,
+                "play_mode": "paused" if srv.player.paused else ("loop" if srv.player.loop else "play"),
+                "volume": srv.player.volume,
+                "volume_percent": srv.player.volume_percent,
+                "brightness": srv.player.brightness,
+                "brightness_percent": srv.player.brightness_percent,
+                "fps": srv.player.fps,
+                "dropped_frames": srv.player.dropped_frames,
+                "resolution": srv.player.resolution,
+                "dmx": {"address": srv.config.address, "universe": srv.config.universe},
+                "dmx_active": srv.receiver.is_receiving,
+                "dmx_receiving": srv.receiver.is_receiving,
+                "dmx_values_changed": srv.receiver.is_active,
+                "dmx_fail_mode": srv.config.dmx_fail_mode,
+                "dmx_fail_osd": srv.config.dmx_fail_osd,
+                "dmx_raw": {
+                    "file": srv.receiver.channellist.get(0),
+                    "folder": srv.receiver.channellist.get(1),
+                    "playmode": srv.receiver.channellist.get(2),
+                    "volume": srv.receiver.channellist.get(3),
+                    "brightness": srv.receiver.channellist.get(4),
+                    "contrast": srv.receiver.channellist.get(5),
+                    "saturation": srv.receiver.channellist.get(6),
+                    "gamma": srv.receiver.channellist.get(7),
+                    "speed": srv.receiver.channellist.get(8),
+                    "rotation": srv.receiver.channellist.get(9),
+                    "zoom": srv.receiver.channellist.get(10),
+                    "pan_x": srv.receiver.channellist.get(11),
+                    "pan_y": srv.receiver.channellist.get(12),
+                },
+                "mediapath": srv.config.mediapath,
+                "video_params": srv.player.video_params,
+                **self._get_system_stats(),
+            }
+        except Exception as exc:
+            print(f"[Web] _build_status error: {exc}")
+            return {"playing": False, "error": str(exc)}
 
     def _build_folders(self) -> dict:
         mediapath = self.server_ref.config.mediapath
@@ -1118,8 +1138,14 @@ class _WebHandler(BaseHTTPRequestHandler):
         params = parse_qs(body)
 
         srv = self.server_ref
-        new_address = int(params.get("address", [str(srv.config.address)])[0])
-        new_universe = int(params.get("universe", [str(srv.config.universe)])[0])
+        try:
+            new_address = int(params.get("address", [str(srv.config.address)])[0])
+            new_universe = int(params.get("universe", [str(srv.config.universe)])[0])
+        except (ValueError, IndexError):
+            msg = '<div class="msg err">Invalid address or universe value.</div>'
+            self._serve_index(message=msg)
+            return
+
         new_mediapath = params.get("mediapath", [srv.config.mediapath])[0].strip()
         if not new_mediapath.endswith("/"):
             new_mediapath += "/"
@@ -1499,22 +1525,26 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         # Apply individual parameters
-        if "contrast" in data:
-            player.contrast = int(data["contrast"])
-        if "saturation" in data:
-            player.saturation = int(data["saturation"])
-        if "gamma" in data:
-            player.gamma = int(data["gamma"])
-        if "speed" in data:
-            player.speed = float(data["speed"])
-        if "rotation" in data:
-            player.rotation = int(data["rotation"])
-        if "zoom" in data:
-            player.zoom = float(data["zoom"])
-        if "pan_x" in data:
-            player.pan_x = float(data["pan_x"])
-        if "pan_y" in data:
-            player.pan_y = float(data["pan_y"])
+        try:
+            if "contrast" in data:
+                player.contrast = int(data["contrast"])
+            if "saturation" in data:
+                player.saturation = int(data["saturation"])
+            if "gamma" in data:
+                player.gamma = int(data["gamma"])
+            if "speed" in data:
+                player.speed = float(data["speed"])
+            if "rotation" in data:
+                player.rotation = int(data["rotation"])
+            if "zoom" in data:
+                player.zoom = float(data["zoom"])
+            if "pan_x" in data:
+                player.pan_x = float(data["pan_x"])
+            if "pan_y" in data:
+                player.pan_y = float(data["pan_y"])
+        except (ValueError, TypeError) as exc:
+            self._serve_json({"ok": False, "error": f"Invalid value: {exc}"}, code=400)
+            return
 
         self._serve_json({"ok": True, **player.video_params})
 

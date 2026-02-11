@@ -1,7 +1,6 @@
 """Tests for Server._resolve_path logic."""
 
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from pi_mediaserver.config import Config
 from pi_mediaserver.main import Server

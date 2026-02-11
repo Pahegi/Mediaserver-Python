@@ -9,7 +9,7 @@ from http.server import HTTPServer
 from unittest.mock import MagicMock
 
 from pi_mediaserver.config import Config
-from pi_mediaserver.web import _WebHandler, start_web_server
+from pi_mediaserver.web import _WebHandler
 
 
 def _make_mock_server(tmp_path):

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import signal
+import socket
 import sys
 import threading
 
@@ -30,6 +31,25 @@ from pi_mediaserver.config import Config, load_config
 from pi_mediaserver.dmx import Channellist, DMXReceiver
 from pi_mediaserver.player import Player
 from pi_mediaserver.web import start_web_server
+
+# Systemd watchdog: try to import sd_notify helper.
+# sd-notify is optional — we degrade gracefully if unavailable.
+_SD_NOTIFY_ADDR: str | None = os.environ.get("NOTIFY_SOCKET")
+
+
+def _sd_notify(state: str) -> None:
+    """Send a notification to systemd if NOTIFY_SOCKET is set."""
+    addr = _SD_NOTIFY_ADDR
+    if not addr:
+        return
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        if addr.startswith("@"):
+            addr = "\0" + addr[1:]
+        sock.sendto(state.encode(), addr)
+        sock.close()
+    except Exception:
+        pass
 
 
 class Server:
@@ -55,6 +75,9 @@ class Server:
         # Start DMX fail mode watchdog
         self._start_dmx_watchdog()
 
+        # Tell systemd we're ready
+        _sd_notify("READY=1")
+
         # Wait until stopped via signal
         self._stop_event.wait()
 
@@ -71,21 +94,27 @@ class Server:
         """Start a background thread that monitors DMX signal and applies fail mode."""
         def _watchdog() -> None:
             while not self._stop_event.is_set():
-                receiving = self.receiver.is_receiving
-                if self._dmx_was_receiving and not receiving:
-                    # Signal just lost — apply fail mode + optional OSD
-                    self._apply_dmx_fail_mode()
-                elif not receiving and self._dmx_fail_applied:
-                    # Still lost — keep OSD visible if enabled
-                    if self.config.dmx_fail_osd:
-                        self.player.show_osd("DMX Signal Lost", duration=3.0)
-                elif receiving and self._dmx_fail_applied:
-                    # Signal restored — clear fail state
-                    self._dmx_fail_applied = False
-                    print("DMX signal restored")
-                    if self.config.dmx_fail_osd:
-                        self.player.show_osd("DMX Signal Restored", duration=2.0)
-                self._dmx_was_receiving = receiving
+                try:
+                    # Ping systemd watchdog
+                    _sd_notify("WATCHDOG=1")
+
+                    receiving = self.receiver.is_receiving
+                    if self._dmx_was_receiving and not receiving:
+                        # Signal just lost — apply fail mode + optional OSD
+                        self._apply_dmx_fail_mode()
+                    elif not receiving and self._dmx_fail_applied:
+                        # Still lost — keep OSD visible if enabled
+                        if self.config.dmx_fail_osd:
+                            self.player.show_osd("DMX Signal Lost", duration=3.0)
+                    elif receiving and self._dmx_fail_applied:
+                        # Signal restored — clear fail state
+                        self._dmx_fail_applied = False
+                        print("DMX signal restored")
+                        if self.config.dmx_fail_osd:
+                            self.player.show_osd("DMX Signal Restored", duration=2.0)
+                    self._dmx_was_receiving = receiving
+                except Exception as exc:
+                    print(f"[Watchdog] error: {exc}")
                 self._stop_event.wait(2.0)
 
         t = threading.Thread(target=_watchdog, daemon=True)
@@ -106,6 +135,13 @@ class Server:
 
     def _on_dmx_update(self, channels: Channellist) -> None:
         """Handle incoming DMX frame with changed values."""
+        try:
+            self._apply_dmx_channels(channels)
+        except Exception as exc:
+            print(f"[Server] DMX update error: {exc}")
+
+    def _apply_dmx_channels(self, channels: Channellist) -> None:
+        """Apply DMX channel values to the player (called from _on_dmx_update)."""
         # Always apply continuous controls
         self.player.volume = channels.volume
         self.player.brightness = channels.brightness
@@ -247,6 +283,11 @@ def main() -> None:
         server.start()
     except KeyboardInterrupt:
         server.stop()
+    except Exception as exc:
+        print(f"[Server] Fatal error: {exc}")
+        server.stop()
+    finally:
+        _sd_notify("STOPPING=1")
 
     sys.exit(0)
 

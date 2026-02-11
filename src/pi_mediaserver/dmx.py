@@ -262,28 +262,34 @@ class DMXReceiver:
 
         @self._receiver.listen_on("availability")
         def _on_availability(universe: int, changed: str) -> None:
-            if universe == self.universe:
-                was = self._universe_available
-                self._universe_available = changed == "available"
-                if self._universe_available and not was:
-                    print(f"sACN universe {universe} available")
-                elif not self._universe_available and was:
-                    print(f"sACN universe {universe} timed out")
+            try:
+                if universe == self.universe:
+                    was = self._universe_available
+                    self._universe_available = changed == "available"
+                    if self._universe_available and not was:
+                        print(f"sACN universe {universe} available")
+                    elif not self._universe_available and was:
+                        print(f"sACN universe {universe} timed out")
+            except Exception as exc:
+                print(f"[DMX] availability callback error: {exc}")
 
         @self._receiver.listen_on("universe", universe=self.universe)
         def _on_packet(packet: sACNPacket) -> None:
-            self.channellist.update(packet.dmxData)
-            has_changes = (
-                self.channellist.file_changed
-                or self.channellist.volume_changed
-                or self.channellist.playmode_changed
-                or self.channellist.brightness_changed
-                or self.channellist.video_effects_changed
-            )
-            if has_changes:
-                self._last_change_time = time.monotonic()
-                if self._callback:
-                    self._callback(self.channellist)
+            try:
+                self.channellist.update(packet.dmxData)
+                has_changes = (
+                    self.channellist.file_changed
+                    or self.channellist.volume_changed
+                    or self.channellist.playmode_changed
+                    or self.channellist.brightness_changed
+                    or self.channellist.video_effects_changed
+                )
+                if has_changes:
+                    self._last_change_time = time.monotonic()
+                    if self._callback:
+                        self._callback(self.channellist)
+            except Exception as exc:
+                print(f"[DMX] packet callback error: {exc}")
 
         self._receiver.start()
         self._receiver.join_multicast(self.universe)
