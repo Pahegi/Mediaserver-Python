@@ -110,16 +110,12 @@ class Server:
                     _sd_notify("WATCHDOG=1")
 
                     receiving = self.receiver.is_receiving
-                    ndi_active = self.player.ndi_source is not None
                     if self._dmx_was_receiving and not receiving:
-                        # Signal just lost — apply fail mode (skip during NDI)
-                        if not ndi_active:
-                            self._apply_dmx_fail_mode()
-                        else:
-                            self._dmx_fail_applied = True
+                        # Signal just lost — apply fail mode
+                        self._apply_dmx_fail_mode()
                     elif not receiving and self._dmx_fail_applied:
-                        # Still lost — show OSD only if main mpv is alive
-                        if self.config.dmx_fail_osd and not ndi_active:
+                        # Still lost — show OSD reminder
+                        if self.config.dmx_fail_osd:
                             self.player.show_osd("DMX Signal Lost", duration=3.0)
                     elif receiving and self._dmx_fail_applied:
                         # Signal restored — clear fail state and re-apply DMX values
@@ -255,6 +251,10 @@ class Server:
 
         # File index 0 = stop playback
         if file_index == 0:
+            # During NDI in hold mode, ignore stop commands
+            # (protects against spurious CH1=0 packets during DMX signal loss)
+            if self.player.ndi_source and self.config.dmx_fail_mode == "hold":
+                return
             self.player.stop()
             return
 

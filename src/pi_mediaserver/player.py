@@ -61,8 +61,8 @@ class Player:
         self._pan_y: float = 0.0
         # NDI state
         self._ndi_source: str | None = None
-        self._ndi_pipe_fd: int | None = None
-        self._ndi_process: subprocess.Popen | None = None
+        self._ndi_fifo_path: str = ""  # Path to named FIFO for video
+        self._ndi_pipe_fd: int | None = None  # Write fd for the FIFO
         self._ndi_audio_process: subprocess.Popen | None = None
         self._ndi_audio_queue: queue.Queue | None = None
         self._ndi_audio_writer_thread: threading.Thread | None = None
@@ -117,12 +117,7 @@ class Player:
         )
 
     def _mpv_set(self, attr: str, value: object) -> None:
-        """Safely set an mpv property. Attempts recovery on failure.
-        
-        Does nothing if NDI playback is active (main mpv is terminated).
-        """
-        if self._ndi_source is not None:
-            return  # Skip - main mpv is not running during NDI
+        """Safely set an mpv property. Attempts recovery on failure."""
         try:
             setattr(self._player, attr, value)
             self._error_count = 0
@@ -133,12 +128,7 @@ class Player:
                 self._try_recover()
 
     def _mpv_cmd(self, *args: object) -> None:
-        """Safely run an mpv command. Attempts recovery on failure.
-        
-        Does nothing if NDI playback is active (main mpv is terminated).
-        """
-        if self._ndi_source is not None:
-            return  # Skip - main mpv is not running during NDI
+        """Safely run an mpv command. Attempts recovery on failure."""
         try:
             self._player.command(*args)
             self._error_count = 0
@@ -422,8 +412,8 @@ class Player:
             path: Absolute path to a media file, or a stream URL.
             loop: Whether to loop the file infinitely.
         """
-        # Stop NDI first if active (releases DRM for main mpv)
-        if self._ndi_source or self._ndi_process is not None:
+        # Stop NDI first if active
+        if self._ndi_source or self._ndi_pipe_fd is not None:
             self.stop_ndi()
         self.loop = loop
         self._paused = False
@@ -520,12 +510,7 @@ class Player:
     @property
     def is_playing_ndi(self) -> bool:
         """True if currently playing an NDI stream."""
-        if self._ndi_source is None:
-            return False
-        # Also check if mpv subprocess is still running
-        if self._ndi_process is not None and self._ndi_process.poll() is None:
-            return True
-        return False
+        return self._ndi_source is not None and self._ndi_pipe_fd is not None
 
     def get_ndi_sources(self) -> list:
         """Get list of discovered NDI sources (NDISourceInfo objects)."""
@@ -634,7 +619,10 @@ class Player:
         height: int,
         already_connected: bool = False,
     ) -> bool:
-        """Set up mpv subprocess and start piping NDI frames.
+        """Set up a named FIFO and tell mpv to play rawvideo from it.
+
+        Keeps the main mpv instance alive — no DRM release/reacquire cycle.
+        Video frames are piped through /tmp/ndi_video by the writer thread.
 
         Args:
             manager: NDI manager
@@ -648,55 +636,42 @@ class Player:
         self._ndi_width = width
         self._ndi_height = height
 
-        # Terminate main mpv to release DRM master
+        # Create a named FIFO for raw video data
+        fifo_path = "/tmp/ndi_video"
         try:
-            self._player.terminate()
-        except Exception:
-            pass
-        time.sleep(0.05)  # Brief wait for DRM release
-
-        # Start mpv subprocess for raw video input
-        mpv_cmd = [
-            "mpv",
-            "--no-config",
-            "--fullscreen",
-            "--hwdec=drm",
-            "--vo=gpu",
-            "--gpu-context=drm",
-            "--profile=fast",
-            "--framedrop=vo",
-            "--no-audio",
-            "--cache=no",
-            "--demuxer-max-bytes=16777216",  # 16MB = ~2 frames buffer
-            "--demuxer-readahead-secs=0",
-            "--demuxer=rawvideo",
-            f"--demuxer-rawvideo-w={width}",
-            f"--demuxer-rawvideo-h={height}",
-            "--demuxer-rawvideo-mp-format=bgra",
-            "--demuxer-rawvideo-fps=30",
-            "--really-quiet",
-            "-",
-        ]
-
-        try:
-            self._ndi_process = subprocess.Popen(
-                mpv_cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            # Try to increase pipe buffer size for faster writes (Linux specific)
-            # F_SETPIPE_SZ = 1031, max usually 1MB without root
+            # Remove stale FIFO if it exists
             try:
-                F_SETPIPE_SZ = 1031
-                # Request 1MB buffer (one 8MB frame won't fit, but larger helps)
-                fcntl.fcntl(self._ndi_process.stdin.fileno(), F_SETPIPE_SZ, 1024 * 1024)
-            except (OSError, AttributeError):
-                pass  # Not critical, continue with default buffer
+                os.unlink(fifo_path)
+            except OSError:
+                pass
+            os.mkfifo(fifo_path)
+        except OSError as exc:
+            log.error("Failed to create FIFO %s: %s", fifo_path, exc)
+            return False
+        self._ndi_fifo_path = fifo_path
+
+        # Tell mpv to load the FIFO as rawvideo with per-file options
+        options = (
+            f"demuxer=rawvideo,"
+            f"demuxer-rawvideo-w={width},"
+            f"demuxer-rawvideo-h={height},"
+            f"demuxer-rawvideo-mp-format=bgra,"
+            f"demuxer-rawvideo-fps=30,"
+            f"cache=no,"
+            f"demuxer-max-bytes=16777216,"
+            f"demuxer-readahead-secs=0,"
+            f"no-audio,"
+            f"framedrop=vo"
+        )
+        try:
+            self._player.command("loadfile", fifo_path, "replace", -1, options)
         except Exception as exc:
-            log.error("Failed to start mpv for NDI: %s", exc)
-            self._player = self._create_mpv()
-            self._restore_state()
+            log.error("Failed to loadfile FIFO for NDI: %s", exc)
+            try:
+                os.unlink(fifo_path)
+            except OSError:
+                pass
+            self._ndi_fifo_path = ""
             return False
 
         self._ndi_source = source_name
@@ -842,11 +817,9 @@ class Player:
             if not manager.start_receiving(source_name, on_frame=on_frame, on_audio=on_audio, on_disconnect=on_disconnect):
                 log.error("Failed to connect to NDI source '%s'", source_name)
                 self._stop_ndi_writer()
-                self._ndi_process.terminate()
-                self._ndi_process = None
+                self._close_ndi_fifo()
                 self._ndi_source = None
-                self._player = self._create_mpv()
-                self._restore_state()
+                self._mpv_cmd("stop")
                 return False
 
         log.info("Playing NDI '%s'", source_name)
@@ -863,17 +836,10 @@ class Player:
 
     def _ndi_watchdog_loop(self) -> None:
         """Watchdog thread: detect when frames stop arriving and cleanup."""
-        TIMEOUT = 15.0  # seconds without frames before cleanup (increased for debugging)
+        TIMEOUT = 15.0  # seconds without frames before cleanup
         while not self._ndi_watchdog_stop.wait(timeout=1.0):
             if self._ndi_source is None:
                 break  # NDI stopped normally
-            # Check mpv subprocess health
-            with self._ndi_lock:
-                proc = self._ndi_process
-                if proc is not None and proc.poll() is not None:
-                    log.warning("NDI mpv subprocess died (exit=%s) — stopping", proc.returncode)
-                    threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
-                    break
             # Check frame timeout
             elapsed = time.time() - self._ndi_last_frame_time
             if elapsed > TIMEOUT:
@@ -883,42 +849,51 @@ class Player:
         log.debug("NDI watchdog stopped")
 
     def _ndi_writer_loop(self) -> None:
-        """Background thread: write frames from queue to mpv stdin."""
+        """Background thread: write frames from queue to named FIFO."""
         frames_written = 0
         stats_start = time.time()
         stats_frames = 0
+        fd: int | None = None
         log.info("NDI writer thread started")
+
+        try:
+            # Open FIFO for writing (blocks until mpv opens for reading)
+            fd = os.open(self._ndi_fifo_path, os.O_WRONLY)
+            # Try to increase pipe buffer size (Linux specific)
+            try:
+                F_SETPIPE_SZ = 1031
+                fcntl.fcntl(fd, F_SETPIPE_SZ, 1024 * 1024)
+            except OSError:
+                pass
+            self._ndi_pipe_fd = fd
+            log.info("NDI FIFO opened for writing: %s", self._ndi_fifo_path)
+        except OSError as exc:
+            log.error("Failed to open FIFO for writing: %s", exc)
+            threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
+            return
+
         while not self._ndi_writer_stop.is_set():
             try:
                 data = self._ndi_frame_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
-            # Update last frame time for watchdog AFTER getting frame
+            # Update last frame time for watchdog
             self._ndi_last_frame_time = time.time()
             frames_written += 1
-            
-            # Get process reference under lock, but write OUTSIDE lock
-            with self._ndi_lock:
-                proc = self._ndi_process
-            
-            if proc is None or proc.stdin is None:
-                log.warning("NDI mpv process not ready")
-                continue
-            if proc.poll() is not None:
-                log.warning("NDI mpv process exited (code=%s)", proc.returncode)
-                threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
-                break
-            
+
             try:
-                # Write outside lock to avoid blocking NDI callback
                 t0 = time.time()
-                proc.stdin.write(data)
-                proc.stdin.flush()  # Force data through pipe
+                # Write all data to the FIFO
+                mv = memoryview(data)
+                written = 0
+                while written < len(mv):
+                    n = os.write(fd, mv[written:])
+                    written += n
                 write_time = time.time() - t0
-                
+
                 stats_frames += 1
                 now = time.time()
-                
+
                 # Log write stats every 5 seconds
                 elapsed = now - stats_start
                 if elapsed >= 5.0:
@@ -927,17 +902,16 @@ class Player:
                     log.info("NDI write stats: %.1f fps written, queue=%d", fps, qsize)
                     stats_start = now
                     stats_frames = 0
-                
+
                 if frames_written == 1:
                     log.info("First NDI frame written to mpv (%d bytes, %.2fs)", len(data), write_time)
                 elif frames_written <= 5 or frames_written % 30 == 0:
                     log.debug("NDI frame %d written (%.3fs)", frames_written, write_time)
-                
-                # Update time again after successful write
+
                 self._ndi_last_frame_time = now
-                
+
             except (BrokenPipeError, OSError) as exc:
-                log.warning("NDI pipe broken (%s) — stopping", exc)
+                log.warning("NDI FIFO broken (%s) — stopping", exc)
                 threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
                 break
 
@@ -989,22 +963,11 @@ class Player:
         width: int,
         height: int,
     ) -> None:
-        """Restart the mpv subprocess with new dimensions (called on resolution change)."""
+        """Restart the FIFO pipeline with new dimensions (called on resolution change)."""
         self._ndi_restarting = True
         try:
-            with self._ndi_lock:
-                proc = self._ndi_process
-                if proc is not None:
-                    try:
-                        proc.stdin.close()
-                    except Exception:
-                        pass
-                    try:
-                        proc.terminate()
-                        proc.wait(timeout=0.5)
-                    except Exception:
-                        proc.kill()
-                    self._ndi_process = None
+            # Close the old FIFO write fd so mpv sees EOF
+            self._close_ndi_fifo()
 
             self._ndi_width = width
             self._ndi_height = height
@@ -1019,9 +982,26 @@ class Player:
         finally:
             self._ndi_restarting = False
 
+    def _close_ndi_fifo(self) -> None:
+        """Close the FIFO write fd and remove the FIFO file."""
+        fd = self._ndi_pipe_fd
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            self._ndi_pipe_fd = None
+        path = self._ndi_fifo_path
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+            self._ndi_fifo_path = ""
+
     def stop_ndi(self) -> None:
-        """Stop NDI stream playback and restore main mpv."""
-        if not self._ndi_source and self._ndi_process is None:
+        """Stop NDI stream playback. Main mpv stays alive."""
+        if not self._ndi_source and self._ndi_pipe_fd is None:
             return
 
         log.debug("stop_ndi: beginning shutdown")
@@ -1036,31 +1016,11 @@ class Player:
             manager.stop_receiving()
             log.debug("stop_ndi: receiver stopped")
 
-        # Kill mpv subprocess — close stdin, then SIGTERM, then SIGKILL
-        with self._ndi_lock:
-            if self._ndi_process is not None:
-                try:
-                    # Close stdin first to signal EOF
-                    if self._ndi_process.stdin:
-                        try:
-                            self._ndi_process.stdin.close()
-                        except Exception:
-                            pass
-                    self._ndi_process.terminate()  # SIGTERM
-                    try:
-                        self._ndi_process.wait(timeout=0.5)
-                    except subprocess.TimeoutExpired:
-                        log.warning("NDI mpv didn't exit, sending SIGKILL")
-                        self._ndi_process.kill()  # SIGKILL
-                        try:
-                            self._ndi_process.wait(timeout=0.5)
-                        except subprocess.TimeoutExpired:
-                            log.error("NDI mpv won't die!")
-                except Exception as exc:
-                    log.error("Error stopping NDI mpv: %s", exc)
-                self._ndi_process = None
+        # Close the FIFO (mpv sees EOF, returns to idle)
+        self._close_ndi_fifo()
 
-            # Kill audio mpv subprocess
+        # Kill audio mpv subprocess
+        with self._ndi_lock:
             if self._ndi_audio_process is not None:
                 try:
                     if self._ndi_audio_process.stdin:
@@ -1081,12 +1041,7 @@ class Player:
         self._ndi_width = 0
         self._ndi_height = 0
 
-        # Recreate main mpv instance
-        time.sleep(0.05)
-        try:
-            self._player = self._create_mpv()
-            self._restore_state()
-        except Exception as exc:
-            log.error("Failed to recreate mpv after NDI: %s", exc)
+        # Tell main mpv to stop (go back to idle black screen)
+        self._mpv_cmd("stop")
 
         log.info("NDI playback stopped")
