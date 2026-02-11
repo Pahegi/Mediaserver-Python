@@ -11,6 +11,17 @@ tasks:
     cmds:
       - sudo systemctl stop mediaserver
 
+  kill:
+    desc: Kill stale mediaserver processes (python + mpv)
+    cmds:
+      - pkill -9 -f "python.*pi_mediaserver" 2>/dev/null || true
+      - pkill -9 -f "poetry run mediaserver" 2>/dev/null || true
+      - pkill -9 -f mpv 2>/dev/null || true
+      - pkill -9 mediaserver 2>/dev/null || true
+      - sudo fuser -k /dev/dri/card1 2>/dev/null || true
+      - sleep 0.5
+      - echo "Killed stale processes"
+
   restart:
     desc: Restart the mediaserver service
     cmds:

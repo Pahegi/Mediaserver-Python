@@ -229,13 +229,13 @@ def test_channellist_zoom_pan_mapping():
 
     # All at 0 = min values
     cl.update(_dmx(1, 0, 0, 200, 255, 128, 128, 128, 128, 0, 0, 0, 0))
-    assert cl.zoom == -2.0
+    assert cl.zoom == 0.1
     assert cl.pan_x == -1.0
     assert cl.pan_y == -1.0
 
     # All at 128 = center
     cl.update(_dmx(1, 0, 0, 200, 255, 128, 128, 128, 128, 0, 128, 128, 128))
-    assert abs(cl.zoom) <= 0.05  # ~0
+    assert cl.zoom == 1.0
     assert abs(cl.pan_x) <= 0.02  # ~0
     assert abs(cl.pan_y) <= 0.02  # ~0
 

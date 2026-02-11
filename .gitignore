@@ -28,3 +28,7 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# NDI Dev Stuff
+NDI SDK for Linux
+Install_NDI_SDK_v6_Linux.sh

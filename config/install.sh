@@ -6,7 +6,9 @@
 #   1. Installs the systemd service (auto-restart + watchdog)
 #   2. Configures silent boot (no text, no logo, black screen)
 #   3. Disables unnecessary services for faster boot
-#   4. Optionally installs the hardware watchdog
+#   4. Sets up WiFi management permissions
+#   5. Optionally installs the hardware watchdog
+#   6. Optionally installs NDI SDK for NDI stream support
 #
 # Recovery: If something goes wrong, boot files are backed up to *.bak
 
@@ -26,14 +28,14 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # ----- 1. Install systemd service -----
-echo "[1/5] Installing systemd service..."
+echo "[1/6] Installing systemd service..."
 cp "$SCRIPT_DIR/mediaserver.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable mediaserver
 echo "      mediaserver.service enabled"
 
 # ----- 2. Configure silent boot -----
-echo "[2/5] Configuring silent boot..."
+echo "[2/6] Configuring silent boot..."
 
 # Backup boot files
 cp -n "$CMDLINE" "$CMDLINE.bak" 2>/dev/null || true
@@ -70,7 +72,7 @@ if ! grep -q "disable_splash=1" "$CONFIG"; then
 fi
 
 # ----- 3. Disable unnecessary services -----
-echo "[3/5] Disabling unnecessary services..."
+echo "[3/6] Disabling unnecessary services..."
 
 SERVICES_TO_DISABLE=(
     "NetworkManager-wait-online.service"
@@ -96,7 +98,7 @@ systemctl mask getty@tty1.service &>/dev/null || true
 echo "      Masked getty@tty1"
 
 # ----- 4. WiFi management permissions -----
-echo "[4/5] Setting up WiFi management permissions..."
+echo "[4/6] Setting up WiFi management permissions..."
 POLKIT_RULE="/etc/polkit-1/rules.d/50-allow-pi-network.rules"
 if [[ ! -f "$POLKIT_RULE" ]]; then
     cat > "$POLKIT_RULE" << 'EOFPK'
@@ -115,13 +117,54 @@ else
 fi
 
 # ----- 5. Hardware watchdog (optional) -----
-echo "[5/5] Hardware watchdog..."
+echo "[5/6] Hardware watchdog..."
 read -p "      Install hardware watchdog? (reboots Pi on system hang) [y/N]: " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     bash "$SCRIPT_DIR/setup-watchdog.sh"
 else
     echo "      Skipped (run config/setup-watchdog.sh later if needed)"
+fi
+
+# ----- 6. NDI SDK (optional) -----
+echo "[6/6] NDI SDK for NDI stream support..."
+NDI_INSTALLER="$SCRIPT_DIR/../Install_NDI_SDK_v6_Linux.sh"
+NDI_LIB_SRC="/usr/local/NDI SDK for Linux/lib/aarch64-rpi4-linux-gnueabi"
+NDI_LIB_DEST="/usr/local/lib"
+
+if [[ -f "$NDI_LIB_DEST/libndi.so.6" ]]; then
+    echo "      NDI SDK already installed"
+elif [[ ! -f "$NDI_INSTALLER" ]]; then
+    echo "      NDI SDK installer not found."
+    echo "      To add NDI support later:"
+    echo "        1. Download 'Install_NDI_SDK_v6_Linux.sh' from https://ndi.video/download-ndi-sdk/"
+    echo "        2. Place it in the project root directory"
+    echo "        3. Re-run this installer, or run manually:"
+    echo "           sudo bash Install_NDI_SDK_v6_Linux.sh"
+    echo "           sudo cp '/usr/local/NDI SDK for Linux/lib/aarch64-rpi4-linux-gnueabi/libndi.so.6' /usr/local/lib/"
+    echo "           sudo ldconfig"
+else
+    read -p "      Install NDI SDK? (enables NDI stream playback) [y/N]: " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "      Running NDI SDK installer (requires accepting license)..."
+        # Run NDI installer (it prompts for license acceptance)
+        bash "$NDI_INSTALLER"
+        
+        # Copy library to system path
+        if [[ -d "$NDI_LIB_SRC" ]]; then
+            cp "$NDI_LIB_SRC/libndi.so.6" "$NDI_LIB_DEST/"
+            # Create symlink for compatibility
+            ln -sf "$NDI_LIB_DEST/libndi.so.6" "$NDI_LIB_DEST/libndi.so"
+            ldconfig
+            echo "      NDI SDK installed successfully"
+        else
+            echo "      Warning: NDI library not found at expected path"
+            echo "      You may need to manually copy libndi.so.6 to /usr/local/lib/"
+        fi
+    else
+        echo "      Skipped (can install NDI SDK later)"
+    fi
 fi
 
 # ----- Done -----
@@ -135,6 +178,13 @@ echo ""
 echo "Boot config:"
 echo "  - Silent boot: enabled"
 echo "  - Console: redirected to tty3"
+echo ""
+echo "Optional features:"
+if [[ -f "/usr/local/lib/libndi.so.6" ]]; then
+    echo "  - NDI SDK: installed (NDI streams supported)"
+else
+    echo "  - NDI SDK: not installed (NDI streams disabled)"
+fi
 echo ""
 echo "Backups created:"
 echo "  - $CMDLINE.bak"

@@ -13,17 +13,21 @@ Uses Pico CSS via CDN for polished styling. Runs in a daemon thread.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
+import socket
 import subprocess
 import threading
 from functools import partial
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs
 
 if TYPE_CHECKING:
     from pi_mediaserver.main import Server
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +196,8 @@ _HTML_TEMPLATE = """\
   /* Modal overlay for txt editor */
   .modal-overlay {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
                     z-index: 100; justify-content: center; align-items: center; }}
-  .modal-overlay.open {{ display: flex; }}
+  .modal-overlay.open {{ display: flex !important; position: fixed !important; inset: 0 !important;
+                         z-index: 9999 !important; }}
   .modal {{ background: var(--pico-card-background-color);
             border: 1px solid var(--pico-muted-border-color);
             border-radius: .5rem; padding: 1.5rem; width: 90%; max-width: 600px;
@@ -303,7 +308,7 @@ _HTML_TEMPLATE = """\
     <span class="ch">CH8</span><span>Gamma &mdash; 0=-100, 128=0, 255=+100</span>
     <span class="ch">CH9</span><span>Speed &mdash; 0=0.25x, 128=1.0x, 255=4.0x</span>
     <span class="ch">CH10</span><span>Rotation &mdash; 0-63=0&deg;, 64-127=90&deg;, 128-191=180&deg;, 192-255=270&deg;</span>
-    <span class="ch">CH11</span><span>Zoom &mdash; 0=-2.0, 128=0, 255=+2.0</span>
+    <span class="ch">CH11</span><span>Zoom &mdash; 0=0.1x, 128=1.0x, 255=2.0x</span>
     <span class="ch">CH12</span><span>Pan X &mdash; 0=-1.0, 128=0, 255=+1.0</span>
     <span class="ch">CH13</span><span>Pan Y &mdash; 0=-1.0, 128=0, 255=+1.0</span>
   </div>
@@ -342,7 +347,7 @@ _HTML_TEMPLATE = """\
   <div style="margin-top:.6rem">
     <div class="stat-row" style="margin-bottom:.5rem">
       <span class="s-label">Status</span>
-      <span class="s-value" id="wifi-status-text">Checking...</span>
+      <span class="s-value" id="wifi-status-text">&mdash;</span>
     </div>
     <div class="stat-row" style="margin-bottom:.5rem">
       <span class="s-label">Network</span>
@@ -380,6 +385,35 @@ _HTML_TEMPLATE = """\
   </div>
 </details>
 
+<!-- NDI Settings -->
+<details id="ndi-settings">
+  <summary>NDI Sources</summary>
+  <div style="margin-top:.6rem">
+    <div class="stat-row" style="margin-bottom:.5rem">
+      <span class="s-label">SDK</span>
+      <span class="s-value" id="ndi-status-text">&mdash;</span>
+    </div>
+    <div class="stat-row" style="margin-bottom:.5rem">
+      <span class="s-label">Playing</span>
+      <span class="s-value" id="ndi-source-text">\u2014</span>
+    </div>
+    <div class="stat-row" style="margin-bottom:.5rem">
+      <span class="s-label">Bandwidth</span>
+      <span class="s-value">
+        <button class="btn btn-sm" id="ndi-bw-lowest" onclick="setNdiBandwidth('lowest')" style="padding:.15rem .4rem;font-size:.7rem">Lowest</button>
+        <button class="btn btn-sm" id="ndi-bw-highest" onclick="setNdiBandwidth('highest')" style="padding:.15rem .4rem;font-size:.7rem">Highest</button>
+      </span>
+    </div>
+    <div id="ndi-sources-list" style="margin-top:.8rem"></div>
+    <div style="margin-top:.6rem">
+      <button class="btn btn-outline btn-sm" onclick="ndiRefreshSources()">Refresh Sources</button>
+    </div>
+    <p style="font-size:.75rem;opacity:.5;margin:.8rem 0 0">
+      Add discovered sources to folders as <code>.ndi</code> files for DMX control.
+    </p>
+  </div>
+</details>
+
 <!-- Media Library -->
 <article>
   <strong>Media Library</strong>
@@ -398,6 +432,31 @@ _HTML_TEMPLATE = """\
     <div class="modal-buttons">
       <button class="btn btn-outline" onclick="closeTxtModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveTxtFile()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Source to Folder Modal -->
+<div class="modal-overlay" id="add-source-modal">
+  <div class="modal">
+    <h3 id="add-source-title">Add Source to Folder</h3>
+    <div style="margin-bottom:.6rem">
+      <label style="font-size:.8rem;opacity:.6">Content</label>
+      <input type="text" id="add-source-content" readonly style="width:100%;padding:.4rem;margin-top:.2rem;background:var(--card);color:var(--fg);border:1px solid #444;border-radius:4px">
+    </div>
+    <div style="margin-bottom:.6rem">
+      <label style="font-size:.8rem;opacity:.6">Folder</label>
+      <select id="add-source-folder" style="width:100%;padding:.4rem;margin-top:.2rem;background:var(--card);color:var(--fg);border:1px solid #444;border-radius:4px">
+        {folder_options}
+      </select>
+    </div>
+    <div style="margin-bottom:.6rem">
+      <label style="font-size:.8rem;opacity:.6">Filename</label>
+      <input type="text" id="add-source-filename" placeholder="source.ndi" style="width:100%;padding:.4rem;margin-top:.2rem;background:var(--card);color:var(--fg);border:1px solid #444;border-radius:4px">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-outline" onclick="closeAddSourceModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddSource()">Add</button>
     </div>
   </div>
 </div>
@@ -527,18 +586,35 @@ function deleteFolder(name) {{
 }}
 
 // ---------------------------------------------------------------------------
-// TXT File Editor
+// TXT/NDI Source File Editor
 // ---------------------------------------------------------------------------
 let txtEditCtx = null;
 
 function openTxtEditor(folder, file) {{
-  txtEditCtx = {{ folder, file }};
-  document.getElementById('txt-modal-title').textContent = file;
-  document.getElementById('txt-editor').value = 'Loading\\u2026';
+  txtEditCtx = {{ folder: folder, file: file, isNew: false }};
+  document.getElementById('txt-modal-title').textContent = 'Edit: ' + file;
+  var editor = document.getElementById('txt-editor');
+  editor.value = 'Loading...';
   document.getElementById('txt-modal').classList.add('open');
-  fetch('/api/file/content?folder=' + encodeURIComponent(folder) + '&file=' + encodeURIComponent(file))
-    .then(r => r.json())
-    .then(d => {{ document.getElementById('txt-editor').value = d.content || ''; }});
+  var url = '/api/file/content?folder=' + encodeURIComponent(folder) + '&file=' + encodeURIComponent(file);
+  fetch(url).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    editor.value = d.content || '';
+  }}).catch(function(e) {{ editor.value = 'Error: ' + e.message; }});
+}}
+
+function createSourceFile(folder) {{
+  var name = prompt('Enter filename (e.g. stream.txt or source.ndi):');
+  if (!name) return;
+  if (!name.endsWith('.txt') && !name.endsWith('.ndi')) {{
+    toast('Filename must end with .txt or .ndi', 'err');
+    return;
+  }}
+  txtEditCtx = {{ folder: folder, file: name, isNew: true }};
+  document.getElementById('txt-modal-title').textContent = 'Create: ' + name;
+  document.getElementById('txt-editor').value = name.endsWith('.ndi')
+    ? 'ndi://HOSTNAME (Source Name)'
+    : 'https://example.com/stream.m3u8';
+  document.getElementById('txt-modal').classList.add('open');
 }}
 
 function closeTxtModal() {{
@@ -548,19 +624,58 @@ function closeTxtModal() {{
 
 function saveTxtFile() {{
   if (!txtEditCtx) return;
-  const content = document.getElementById('txt-editor').value;
-  api('/api/file/content', {{ folder: txtEditCtx.folder, file: txtEditCtx.file, content }})
-    .then(d => {{
-      if (d.ok) {{ toast('Saved'); closeTxtModal(); }}
+  var content = document.getElementById('txt-editor').value;
+  var endpoint = txtEditCtx.isNew ? '/api/file/create' : '/api/file/content';
+  api(endpoint, {{ folder: txtEditCtx.folder, file: txtEditCtx.file, content: content }})
+    .then(function(d) {{
+      if (d.ok) {{
+        toast(txtEditCtx.isNew ? 'Created' : 'Saved');
+        var wasNew = txtEditCtx.isNew;
+        closeTxtModal();
+        if (wasNew) location.reload();
+      }}
       else toast(d.error||'Save failed', 'err');
     }});
 }}
 
-
-
 // Close modal on overlay click
 document.getElementById('txt-modal').addEventListener('click', function(e) {{
   if (e.target === this) closeTxtModal();
+}});
+
+// ---------------------------------------------------------------------------
+// Add Source to Folder Modal
+// ---------------------------------------------------------------------------
+function openAddSourceModal(content, suggestedFilename) {{
+  document.getElementById('add-source-content').value = content;
+  document.getElementById('add-source-filename').value = suggestedFilename || '';
+  var ext = suggestedFilename && suggestedFilename.endsWith('.ndi') ? '.ndi' : '.txt';
+  document.getElementById('add-source-title').textContent = 'Add ' + ext.toUpperCase().slice(1) + ' Source to Folder';
+  document.getElementById('add-source-modal').classList.add('open');
+}}
+
+function closeAddSourceModal() {{
+  document.getElementById('add-source-modal').classList.remove('open');
+}}
+
+function submitAddSource() {{
+  var folder = document.getElementById('add-source-folder').value;
+  var filename = document.getElementById('add-source-filename').value.trim();
+  var content = document.getElementById('add-source-content').value;
+  if (!folder) {{ toast('Select a folder', 'err'); return; }}
+  if (!filename) {{ toast('Enter a filename', 'err'); return; }}
+  if (!filename.endsWith('.txt') && !filename.endsWith('.ndi')) {{
+    toast('Filename must end with .txt or .ndi', 'err'); return;
+  }}
+  api('/api/file/create', {{ folder: folder, file: filename, content: content }})
+    .then(function(d) {{
+      if (d.ok) {{ toast('Source added'); closeAddSourceModal(); location.reload(); }}
+      else toast(d.error||'Failed', 'err');
+    }});
+}}
+
+document.getElementById('add-source-modal').addEventListener('click', function(e) {{
+  if (e.target === this) closeAddSourceModal();
 }});
 
 // ---------------------------------------------------------------------------
@@ -689,11 +804,22 @@ function refreshStatus() {{
 
     // Now Playing
     const badge = document.getElementById('st-badge');
-    badge.textContent = d.paused ? 'Paused' : (d.playing ? 'Playing' : 'Stopped');
-    badge.className = 'badge ' + (d.paused ? 'paused' : (d.playing ? 'on' : 'off'));
+    const isNdi = d.ndi && d.ndi.playing;
+    if (isNdi) {{
+      badge.textContent = 'NDI';
+      badge.className = 'badge on';
+    }} else {{
+      badge.textContent = d.paused ? 'Paused' : (d.playing ? 'Playing' : 'Stopped');
+      badge.className = 'badge ' + (d.paused ? 'paused' : (d.playing ? 'on' : 'off'));
+    }}
     const fEl = document.getElementById('st-file');
-    const fname = d.current_file ? d.current_file.split('/').pop() : '\u2014';
-    fEl.textContent = fname; fEl.title = d.current_file || '';
+    var fname;
+    if (isNdi && d.ndi.source) {{
+      fname = d.ndi.source;
+    }} else {{
+      fname = d.current_file ? d.current_file.split('/').pop() : '\u2014';
+    }}
+    fEl.textContent = fname; fEl.title = isNdi ? ('NDI: ' + (d.ndi.source || '')) : (d.current_file || '');
     document.getElementById('st-res').textContent = d.resolution || '\u2014';
     document.getElementById('st-fps').textContent = d.fps ? d.fps + ' fps' : '\u2014';
     var drops = d.dropped_frames != null ? d.dropped_frames : 0;
@@ -757,8 +883,11 @@ setInterval(refreshStatus, 2000);
 // ---------------------------------------------------------------------------
 function wifiRefreshStatus() {{
   fetch('/api/wifi/status').then(r => r.json()).then(d => {{
-    if (!d.ok) return;
     var statusEl = document.getElementById('wifi-status-text');
+    if (!d.ok) {{
+      statusEl.innerHTML = '<span class="badge off">Unavailable</span>';
+      return;
+    }}
     var ssidEl = document.getElementById('wifi-ssid');
     var sigEl = document.getElementById('wifi-signal');
     var ipEl = document.getElementById('wifi-ip');
@@ -787,7 +916,9 @@ function wifiRefreshStatus() {{
       enableBtn.style.display = 'none';
       disableBtn.style.display = '';
     }}
-  }}).catch(() => {{}});
+  }}).catch(function() {{
+    document.getElementById('wifi-status-text').innerHTML = '<span class="badge off">Unavailable</span>';
+  }});
 }}
 
 function wifiScan() {{
@@ -874,6 +1005,106 @@ document.getElementById('wifi-settings').addEventListener('toggle', function(e) 
     wifiScan();
   }}
 }});
+
+// ---------------------------------------------------------------------------
+// NDI Management
+// ---------------------------------------------------------------------------
+function ndiRefreshStatus() {{
+  fetch('/api/ndi/status').then(function(r) {{ return r.json(); }}).then(function(d) {{
+    var statusEl = document.getElementById('ndi-status-text');
+    var sourceEl = document.getElementById('ndi-source-text');
+    if (!d.available) {{
+      statusEl.innerHTML = '<span class="badge off">Not Installed</span>';
+      sourceEl.textContent = '\u2014';
+    }} else if (d.active) {{
+      statusEl.innerHTML = '<span class="badge on">Playing</span>';
+      sourceEl.textContent = d.current_source || '\u2014';
+    }} else {{
+      statusEl.innerHTML = '<span class="badge paused">Available</span>';
+      sourceEl.textContent = '\u2014';
+    }}
+    if (d.available) {{
+      ndiRefreshSources();
+      ndiRefreshBandwidth();
+    }}
+  }}).catch(function() {{
+    document.getElementById('ndi-status-text').innerHTML = '<span class="badge off">Error</span>';
+  }});
+}}
+
+function ndiRefreshBandwidth() {{
+  fetch('/api/ndi/bandwidth').then(function(r) {{ return r.json(); }}).then(function(d) {{
+    if (!d.ok) return;
+    var lowestBtn = document.getElementById('ndi-bw-lowest');
+    var highestBtn = document.getElementById('ndi-bw-highest');
+    if (d.bandwidth === 'highest') {{
+      lowestBtn.classList.remove('btn-primary');
+      lowestBtn.classList.add('btn-outline');
+      highestBtn.classList.remove('btn-outline');
+      highestBtn.classList.add('btn-primary');
+    }} else {{
+      highestBtn.classList.remove('btn-primary');
+      highestBtn.classList.add('btn-outline');
+      lowestBtn.classList.remove('btn-outline');
+      lowestBtn.classList.add('btn-primary');
+    }}
+  }}).catch(function() {{}});
+}}
+
+function setNdiBandwidth(bw) {{
+  fetch('/api/ndi/bandwidth', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{bandwidth: bw}})
+  }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    if (d.ok) {{
+      ndiRefreshBandwidth();
+      toast('NDI bandwidth set to ' + bw);
+    }} else {{
+      toast(d.error || 'Failed to set bandwidth', 'error');
+    }}
+  }}).catch(function() {{
+    toast('Network error', 'error');
+  }});
+}}
+
+function ndiRefreshSources() {{
+  fetch('/api/ndi/sources').then(function(r) {{ return r.json(); }}).then(function(d) {{
+    var list = document.getElementById('ndi-sources-list');
+    if (!d.ok || !d.sources || d.sources.length === 0) {{
+      list.innerHTML = '<p style="font-size:.8rem;opacity:.5">No NDI sources discovered</p>';
+      return;
+    }}
+    var html = '<table class="file-table" style="margin-top:.3rem"><tr><th>Source</th><th>Resolution</th><th style="text-align:right">Action</th></tr>';
+    d.sources.forEach(function(s) {{
+      var res = (s.probed && s.width > 0) ? s.width + 'x' + s.height : '<span style="opacity:.4">probing...</span>';
+      var esc = s.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      var safeName = s.name.replace(/[^a-zA-Z0-9_(). -]/g, '_').replace(/ +/g, '-').toLowerCase();
+      var onclick = 'openAddSourceModal(&apos;ndi://' + esc + '&apos;, &apos;' + safeName + '.ndi&apos;)';
+      html += '<tr><td style="font-size:.8rem">' + s.name + '</td>'
+            + '<td style="font-size:.8rem">' + res + '</td>'
+            + '<td style="text-align:right"><button class="btn btn-primary btn-sm" onclick="' + onclick + '">Add to Folder</button></td></tr>';
+    }});
+    html += '</table>';
+    list.innerHTML = html;
+  }}).catch(function() {{
+    document.getElementById('ndi-sources-list').innerHTML = '<p style="font-size:.8rem;color:var(--err)">Error loading sources</p>';
+  }});
+}}
+
+// Load NDI status and sources when the section is opened
+var ndiSection = document.getElementById('ndi-settings');
+if (ndiSection) {{
+  ndiSection.addEventListener('toggle', function(e) {{
+    if (e.target.open) {{
+      ndiRefreshStatus();
+    }}
+  }});
+}}
+
+// Initial status fetch on page load
+wifiRefreshStatus();
+ndiRefreshStatus();
 </script>
 </body>
 </html>
@@ -917,6 +1148,12 @@ class _WebHandler(BaseHTTPRequestHandler):
                 self._handle_wifi_status()
             elif self.path == "/api/wifi/networks":
                 self._handle_wifi_scan()
+            elif self.path == "/api/ndi/status":
+                self._handle_ndi_status()
+            elif self.path == "/api/ndi/sources":
+                self._handle_ndi_sources()
+            elif self.path == "/api/ndi/bandwidth":
+                self._handle_ndi_get_bandwidth()
             else:
                 self.send_error(404)
         except Exception as exc:
@@ -944,6 +1181,8 @@ class _WebHandler(BaseHTTPRequestHandler):
                 self._handle_folder_delete()
             elif self.path == "/api/file/content":
                 self._handle_write_file()
+            elif self.path == "/api/file/create":
+                self._handle_create_file()
             elif self.path == "/api/video-params":
                 self._handle_video_params()
             elif self.path == "/api/wifi/connect":
@@ -954,6 +1193,12 @@ class _WebHandler(BaseHTTPRequestHandler):
                 self._handle_wifi_enable()
             elif self.path == "/api/wifi/disable":
                 self._handle_wifi_disable()
+            elif self.path == "/api/ndi/refresh":
+                self._handle_ndi_refresh()
+            elif self.path == "/api/ndi/play":
+                self._handle_ndi_play()
+            elif self.path == "/api/ndi/bandwidth":
+                self._handle_ndi_set_bandwidth()
             else:
                 self.send_error(404)
         except Exception as exc:
@@ -961,7 +1206,7 @@ class _WebHandler(BaseHTTPRequestHandler):
 
     def _try_error_response(self, exc: Exception) -> None:
         """Try to send a 500 JSON error. Swallow if the connection is broken."""
-        print(f"[Web] request error on {self.path}: {exc}")
+        log.error("Request error on %s: %s", self.path, exc)
         try:
             self._serve_json({"ok": False, "error": "Internal server error"}, code=500)
         except Exception:
@@ -1095,10 +1340,15 @@ class _WebHandler(BaseHTTPRequestHandler):
                 },
                 "mediapath": srv.config.mediapath,
                 "video_params": srv.player.video_params,
+                "ndi": {
+                    "available": srv.player.ndi_available,
+                    "playing": srv.player.is_playing_ndi,
+                    "source": srv.player.ndi_source,
+                },
                 **self._get_system_stats(),
             }
         except Exception as exc:
-            print(f"[Web] _build_status error: {exc}")
+            log.error("_build_status error: %s", exc)
             return {"playing": False, "error": str(exc)}
 
     def _build_folders(self) -> dict:
@@ -1136,6 +1386,8 @@ class _WebHandler(BaseHTTPRequestHandler):
                     f'<div class="folder-title">'
                     f'<h3><span class="idx">Folder {fidx}</span> {fname}</h3>'
                     f'<div class="folder-actions">'
+                    f"<button class=\"btn btn-primary btn-sm\" onclick=\"createSourceFile('{esc}')\""
+                    f">+ New Source</button>"
                     f"<button class=\"btn btn-outline btn-sm\" onclick=\"renameFolder('{esc}')\""
                     f">Rename</button>"
                     f"<button class=\"btn btn-danger btn-sm\" onclick=\"deleteFolder('{esc}')\""
@@ -1150,14 +1402,15 @@ class _WebHandler(BaseHTTPRequestHandler):
                         '<th class="col-actions">Actions</th></tr>'
                     )
                     for i, f in enumerate(folder["files"], 1):
-                        is_txt = f.lower().endswith(".txt")
-                        css_cls = ' class="url-file"' if is_txt else ""
+                        f_lower = f.lower()
+                        is_source = f_lower.endswith(".txt") or f_lower.endswith(".ndi")
+                        css_cls = ' class="url-file"' if is_source else ""
                         esc_f = f.replace("'", "\\'").replace('"', "&quot;")
 
                         edit_btn = (
                             f"<button class=\"btn btn-warn btn-sm\" "
                             f"onclick=\"openTxtEditor('{esc}','{esc_f}')\">Edit</button> "
-                            if is_txt
+                            if is_source
                             else ""
                         )
 
@@ -1207,6 +1460,16 @@ class _WebHandler(BaseHTTPRequestHandler):
             folders_html = "\n".join(parts)
         else:
             folders_html = '<p style="opacity:.4">No media folders found. Create one above.</p>'
+
+        # Build folder <option> tags for the add-source modal
+        folder_options_parts: list[str] = []
+        if folders_data["folders"]:
+            for folder in folders_data["folders"]:
+                esc_name = folder["name"].replace('"', "&quot;")
+                folder_options_parts.append(
+                    f'<option value="{esc_name}">{folder["name"]}</option>'
+                )
+        folder_options = "\n        ".join(folder_options_parts)
 
         # Playing status
         if status["paused"]:
@@ -1281,6 +1544,7 @@ class _WebHandler(BaseHTTPRequestHandler):
             universe=srv.config.universe,
             mediapath=srv.config.mediapath,
             folders_html=folders_html,
+            folder_options=folder_options,
             vp_contrast=vp["contrast"],
             vp_saturation=vp["saturation"],
             vp_gamma=vp["gamma"],
@@ -1404,7 +1668,7 @@ class _WebHandler(BaseHTTPRequestHandler):
                 with open(dest, "wb") as out:
                     out.write(data)
                 uploaded.append(safe_name)
-                print(f"Uploaded '{safe_name}' to '{folder_name}'")
+                log.info("Uploaded '%s' to '%s'", safe_name, folder_name)
 
         # Always redirect back — works for both form submit and JS fetch
         self.send_response(303)
@@ -1482,7 +1746,7 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         os.rename(old_path, new_path)
-        print(f"Renamed '{old_name}' \u2192 '{new_name}' in '{folder}'")
+        log.info("Renamed file: %s -> %s in %s", old_name, new_name, folder)
         self._serve_json({"ok": True})
 
     # =====================================================================
@@ -1518,7 +1782,7 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         shutil.move(src, dst)
-        print(f"Moved '{file_name}' from '{from_folder}' to '{to_folder}'")
+        log.info("Moved '%s' from '%s' to '%s'", file_name, from_folder, to_folder)
         self._serve_json({"ok": True})
 
     # =====================================================================
@@ -1545,7 +1809,7 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         os.remove(path)
-        print(f"Deleted '{file_name}' from '{folder}'")
+        log.info("Deleted '%s' from '%s'", file_name, folder)
         self._serve_json({"ok": True})
 
     # =====================================================================
@@ -1573,7 +1837,7 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         os.makedirs(folder_path, exist_ok=True)
-        print(f"Created folder '{name}'")
+        log.info("Created folder '%s'", name)
         self._serve_json({"ok": True})
 
     def _handle_folder_rename(self) -> None:
@@ -1603,7 +1867,7 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         os.rename(old_path, new_path)
-        print(f"Renamed folder '{old_name}' \u2192 '{new_name}'")
+        log.info("Renamed folder: %s -> %s", old_name, new_name)
         self._serve_json({"ok": True})
 
     def _handle_folder_delete(self) -> None:
@@ -1624,7 +1888,7 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         shutil.rmtree(folder_path)
-        print(f"Deleted folder '{name}' and all contents")
+        log.info("Deleted folder '%s' and all contents", name)
         self._serve_json({"ok": True})
 
     # =====================================================================
@@ -1680,7 +1944,49 @@ class _WebHandler(BaseHTTPRequestHandler):
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
-            print(f"Updated content of '{file_name}' in '{folder}'")
+            log.info("Updated content of '%s' in '%s'", file_name, folder)
+            self._serve_json({"ok": True})
+        except OSError as e:
+            self._serve_json({"ok": False, "error": str(e)}, code=500)
+
+    def _handle_create_file(self) -> None:
+        """POST /api/file/create — create a new text-based source file."""
+        data = self._read_json_body()
+        if data is None:
+            return
+
+        folder = data.get("folder", "")
+        file_name = data.get("file", "")
+        content = data.get("content", "")
+
+        if not all([folder, file_name]):
+            self._serve_json({"ok": False, "error": "Missing fields"}, code=400)
+            return
+
+        # Validate extension
+        if not (file_name.endswith(".txt") or file_name.endswith(".ndi")):
+            self._serve_json(
+                {"ok": False, "error": "Only .txt and .ndi files allowed"},
+                code=400,
+            )
+            return
+
+        mediapath = self.server_ref.config.mediapath
+        folder_path = os.path.join(mediapath, folder)
+        path = os.path.join(folder_path, file_name)
+
+        if not os.path.isdir(folder_path):
+            self._serve_json({"ok": False, "error": "Folder not found"}, code=404)
+            return
+
+        if os.path.exists(path):
+            self._serve_json({"ok": False, "error": "File already exists"}, code=409)
+            return
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            log.info("Created source file '%s' in '%s'", file_name, folder)
             self._serve_json({"ok": True})
         except OSError as e:
             self._serve_json({"ok": False, "error": str(e)}, code=500)
@@ -1866,11 +2172,11 @@ class _WebHandler(BaseHTTPRequestHandler):
             )
 
             if result.returncode == 0:
-                print(f"[WiFi] Connected to '{ssid}'")
+                log.info("WiFi connected to '%s'", ssid)
                 self._serve_json({"ok": True})
             else:
                 error = result.stderr.strip() or result.stdout.strip()
-                print(f"[WiFi] Failed to connect to '{ssid}': {error}")
+                log.warning("WiFi failed to connect to '%s': %s", ssid, error)
                 self._serve_json({"ok": False, "error": error}, code=400)
         except subprocess.TimeoutExpired:
             self._serve_json({"ok": False, "error": "Connection timeout"}, code=500)
@@ -1885,7 +2191,7 @@ class _WebHandler(BaseHTTPRequestHandler):
                 capture_output=True, text=True, timeout=10
             )
             if result.returncode == 0:
-                print("[WiFi] Disconnected")
+                log.info("WiFi disconnected")
                 self._serve_json({"ok": True})
             else:
                 self._serve_json({"ok": False, "error": result.stderr.strip()}, code=400)
@@ -1900,7 +2206,7 @@ class _WebHandler(BaseHTTPRequestHandler):
                 capture_output=True, text=True, timeout=10
             )
             if result.returncode == 0:
-                print("[WiFi] Radio enabled")
+                log.info("WiFi radio enabled")
                 self._serve_json({"ok": True})
             else:
                 self._serve_json({"ok": False, "error": result.stderr.strip()}, code=400)
@@ -1915,12 +2221,117 @@ class _WebHandler(BaseHTTPRequestHandler):
                 capture_output=True, text=True, timeout=10
             )
             if result.returncode == 0:
-                print("[WiFi] Radio disabled")
+                log.info("WiFi radio disabled")
                 self._serve_json({"ok": True})
             else:
                 self._serve_json({"ok": False, "error": result.stderr.strip()}, code=400)
         except Exception as exc:
             self._serve_json({"ok": False, "error": str(exc)}, code=500)
+
+    # =====================================================================
+    # NDI handlers
+    # =====================================================================
+
+    def _handle_ndi_status(self) -> None:
+        """GET /api/ndi/status — get NDI availability and current state."""
+        player = self.server_ref.player
+        self._serve_json({
+            "ok": True,
+            "available": player.ndi_available,
+            "active": player.is_playing_ndi,
+            "current_source": player.ndi_source,
+        })
+
+    def _handle_ndi_sources(self) -> None:
+        """GET /api/ndi/sources — list discovered NDI sources with resolution."""
+        player = self.server_ref.player
+        if not player.ndi_available:
+            self._serve_json({
+                "ok": False,
+                "error": "NDI not available (SDK not installed)",
+            }, code=400)
+            return
+        sources = player.get_ndi_sources()
+        self._serve_json({
+            "ok": True,
+            "available": True,
+            "sources": [s.to_dict() if hasattr(s, 'to_dict') else {"name": s} for s in sources],
+        })
+
+    def _handle_ndi_refresh(self) -> None:
+        """POST /api/ndi/refresh — restart NDI discovery."""
+        player = self.server_ref.player
+        if not player.ndi_available:
+            self._serve_json({
+                "ok": False,
+                "error": "NDI not available (SDK not installed)",
+            }, code=400)
+            return
+        player.stop_ndi_discovery()
+        player.start_ndi_discovery()
+        self._serve_json({"ok": True, "message": "Discovery restarted"})
+
+    def _handle_ndi_play(self) -> None:
+        """POST /api/ndi/play — play an NDI source directly."""
+        player = self.server_ref.player
+        if not player.ndi_available:
+            self._serve_json({
+                "ok": False,
+                "error": "NDI not available (SDK not installed)",
+            }, code=400)
+            return
+
+        data = self._read_json_body()
+        if data is None:
+            return
+
+        source_name = data.get("source", "").strip()
+        if not source_name:
+            self._serve_json({"ok": False, "error": "Missing source name"}, code=400)
+            return
+
+        if player.play_ndi(source_name):
+            self._serve_json({"ok": True})
+        else:
+            self._serve_json({"ok": False, "error": "Failed to play NDI source"}, code=500)
+
+    def _handle_ndi_get_bandwidth(self) -> None:
+        """GET /api/ndi/bandwidth — get current NDI bandwidth setting."""
+        player = self.server_ref.player
+        if not player.ndi_available:
+            self._serve_json({
+                "ok": False,
+                "error": "NDI not available (SDK not installed)",
+            }, code=400)
+            return
+        bandwidth = player.get_ndi_bandwidth()
+        self._serve_json({"ok": True, "bandwidth": bandwidth})
+
+    def _handle_ndi_set_bandwidth(self) -> None:
+        """POST /api/ndi/bandwidth — set NDI bandwidth mode (lowest/highest)."""
+        player = self.server_ref.player
+        if not player.ndi_available:
+            self._serve_json({
+                "ok": False,
+                "error": "NDI not available (SDK not installed)",
+            }, code=400)
+            return
+
+        data = self._read_json_body()
+        if data is None:
+            return
+
+        bandwidth = data.get("bandwidth", "").strip().lower()
+        if bandwidth not in ("lowest", "highest"):
+            self._serve_json({"ok": False, "error": "Invalid bandwidth (use 'lowest' or 'highest')"}, code=400)
+            return
+
+        player.set_ndi_bandwidth(bandwidth)
+        # Also save to config
+        srv = self.server_ref
+        srv.config.ndi_bandwidth = bandwidth
+        self._save_config(srv.config)
+        self._serve_json({"ok": True, "bandwidth": bandwidth})
 
     # =====================================================================
     # Shared helpers
@@ -1951,11 +2362,12 @@ class _WebHandler(BaseHTTPRequestHandler):
             "FailOSD": str(config.dmx_fail_osd),
         }
         parser["Web"] = {"Port": str(config.web_port)}
+        parser["NDI"] = {"Bandwidth": config.ndi_bandwidth}
         try:
             with open(path, "w") as f:
                 parser.write(f)
         except OSError as e:
-            print(f"Failed to save config: {e}")
+            log.error("Failed to save config: %s", e)
 
     def _serve_json(self, data: dict, code: int = 200) -> None:
         body = json.dumps(data, indent=2).encode("utf-8")
@@ -1969,6 +2381,7 @@ class _WebHandler(BaseHTTPRequestHandler):
         body = html.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -1979,6 +2392,18 @@ class _WebHandler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 
 
+class _DualStackHTTPServer(ThreadingHTTPServer):
+    """HTTP server that accepts both IPv4 and IPv6 connections."""
+
+    address_family = socket.AF_INET6
+    allow_reuse_address = True
+
+    def server_bind(self) -> None:
+        # Allow dual-stack: accept IPv4 connections on the IPv6 socket
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 def start_web_server(server: Server, port: int = 8080) -> None:
     """Start the web interface on a daemon thread.
 
@@ -1987,7 +2412,11 @@ def start_web_server(server: Server, port: int = 8080) -> None:
         port: TCP port to listen on.
     """
     handler = partial(_WebHandler, server)
-    httpd = HTTPServer(("", port), handler)
+    try:
+        httpd = _DualStackHTTPServer(("::", port), handler)
+    except OSError:
+        # Fallback to IPv4-only if IPv6 is not available
+        httpd = ThreadingHTTPServer(("", port), handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
-    print(f"Web interface running at http://0.0.0.0:{port}/")
+    log.info("Web interface running at http://0.0.0.0:%d/", port)

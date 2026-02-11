@@ -11,13 +11,14 @@ DMX Protocol (13 channels starting at configured address):
     CH8  (offset 7)  - Gamma:         0=-100, 128=0, 255=+100
     CH9  (offset 8)  - Speed:         0=0.25x, 128=1.0x, 255=4.0x
     CH10 (offset 9)  - Rotation:      0-63=0°, 64-127=90°, 128-191=180°, 192-255=270°
-    CH11 (offset 10) - Zoom:          0=-2.0, 128=0, 255=+2.0
+    CH11 (offset 10) - Zoom:          0=0.1x, 128=1.0x, 255=2.0x
     CH12 (offset 11) - Pan X:         0=-1.0, 128=0, 255=+1.0
     CH13 (offset 12) - Pan Y:         0=-1.0, 128=0, 255=+1.0
 """
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import threading
 import time
@@ -27,6 +28,8 @@ import sacn
 
 if TYPE_CHECKING:
     from sacn.receiver import sACNPacket
+
+log = logging.getLogger(__name__)
 
 # Number of DMX channels the server uses
 NUM_CHANNELS = 13
@@ -201,8 +204,13 @@ class Channellist:
 
     @property
     def zoom(self) -> float:
-        """Zoom level -2.0..2.0 mapped from DMX 0-255 (128=0)."""
-        return round(self.get(CH_ZOOM) * 4.0 / 255 - 2.0, 2)
+        """Linear zoom factor 0.1..2.0 mapped from DMX 0-255 (128=1.0)."""
+        raw = self.get(CH_ZOOM)
+        if raw <= 128:
+            # 0→0.1, 128→1.0
+            return round(0.1 + (raw / 128) * 0.9, 2)
+        # 129→1.0+, 255→2.0
+        return round(1.0 + ((raw - 128) / 127) * 1.0, 2)
 
     @property
     def pan_x(self) -> float:
@@ -297,9 +305,9 @@ class DMXReceiver:
             pass
         try:
             self._receiver.join_multicast(self.universe)
-            print(f"sACN: multicast rejoined on universe {self.universe}")
+            log.info("sACN: multicast rejoined on universe %d", self.universe)
         except Exception as exc:
-            print(f"sACN: rejoin failed: {exc}")
+            log.error("sACN: rejoin failed: %s", exc)
 
     def _network_monitor(self) -> None:
         """Background thread that monitors network interface changes."""
@@ -310,14 +318,14 @@ class DMXReceiver:
                     added = current_ips - self._known_ips
                     removed = self._known_ips - current_ips
                     if added:
-                        print(f"Network: interfaces added {added}")
+                        log.info("Network: interfaces added %s", added)
                     if removed:
-                        print(f"Network: interfaces removed {removed}")
+                        log.info("Network: interfaces removed %s", removed)
                     self._known_ips = current_ips
                     # Rejoin multicast when network changes
                     self._rejoin_multicast()
             except Exception as exc:
-                print(f"[DMX] network monitor error: {exc}")
+                log.error("Network monitor error: %s", exc)
 
     def start(self) -> None:
         """Start listening for sACN packets."""
@@ -329,11 +337,11 @@ class DMXReceiver:
                     was = self._universe_available
                     self._universe_available = changed == "available"
                     if self._universe_available and not was:
-                        print(f"sACN universe {universe} available")
+                        log.info("sACN universe %d available", universe)
                     elif not self._universe_available and was:
-                        print(f"sACN universe {universe} timed out")
+                        log.warning("sACN universe %d timed out", universe)
             except Exception as exc:
-                print(f"[DMX] availability callback error: {exc}")
+                log.error("Availability callback error: %s", exc)
 
         @self._receiver.listen_on("universe", universe=self.universe)
         def _on_packet(packet: sACNPacket) -> None:
@@ -351,11 +359,11 @@ class DMXReceiver:
                     if self._callback:
                         self._callback(self.channellist)
             except Exception as exc:
-                print(f"[DMX] packet callback error: {exc}")
+                log.error("Packet callback error: %s", exc)
 
         self._receiver.start()
         self._receiver.join_multicast(self.universe)
-        print(f"sACN receiver started on universe {self.universe}")
+        log.info("sACN receiver started on universe %d", self.universe)
 
         # Start network monitor to rejoin when interfaces change
         self._known_ips = _get_interface_ips()
@@ -377,4 +385,4 @@ class DMXReceiver:
             self._receiver.stop()
         except Exception:
             pass
-        print("sACN receiver stopped")
+        log.info("sACN receiver stopped")

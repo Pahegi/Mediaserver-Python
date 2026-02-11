@@ -35,8 +35,12 @@ def _make_mock_server(tmp_path):
     srv.player.resolution = "1920x1080"
     srv.player.video_params = {
         "contrast": 0, "saturation": 0, "gamma": 0, "speed": 1.0,
-        "rotation": 0, "zoom": 0.0, "pan_x": 0.0, "pan_y": 0.0,
+        "rotation": 0, "zoom": 1.0, "pan_x": 0.0, "pan_y": 0.0,
     }
+    # NDI mock
+    srv.player.ndi_available = False
+    srv.player.is_playing_ndi = False
+    srv.player.ndi_source = None
     # DMX receiver mock
     srv.receiver.is_receiving = False
     srv.receiver.is_active = False

@@ -1,8 +1,11 @@
 """Configuration loading for Pi Medienserver."""
 
 import configparser
+import logging
 import os
 from dataclasses import dataclass
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -15,6 +18,7 @@ class Config:
     web_port: int = 8080
     dmx_fail_mode: str = "hold"
     dmx_fail_osd: bool = True
+    ndi_bandwidth: str = "lowest"
 
     @property
     def dmx_label(self) -> str:
@@ -41,7 +45,7 @@ def load_config(configpath: str = "/home/pi/config.txt") -> Config:
     parser = configparser.ConfigParser()
 
     if not os.path.isfile(configpath):
-        print(f"Config file '{configpath}' not found, using defaults ({config.dmx_label})")
+        log.info("Config file '%s' not found, using defaults (%s)", configpath, config.dmx_label)
         return config
 
     try:
@@ -61,9 +65,14 @@ def load_config(configpath: str = "/home/pi/config.txt") -> Config:
         web_section = "Web"
         if parser.has_section(web_section):
             config.web_port = parser.getint(web_section, "Port", fallback=config.web_port)
-        print(f"Loaded config from '{configpath}': address {config.dmx_label}")
+        ndi_section = "NDI"
+        if parser.has_section(ndi_section):
+            config.ndi_bandwidth = parser.get(ndi_section, "Bandwidth", fallback=config.ndi_bandwidth)
+            if config.ndi_bandwidth not in ("lowest", "highest"):
+                config.ndi_bandwidth = "lowest"
+        log.info("Loaded config from '%s': address %s", configpath, config.dmx_label)
     except Exception as e:
-        print(f"Error reading config: {e}")
-        print(f"Using defaults ({config.dmx_label})")
+        log.error("Error reading config: %s", e)
+        log.info("Using defaults (%s)", config.dmx_label)
 
     return config

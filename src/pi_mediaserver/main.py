@@ -14,13 +14,14 @@ DMX Protocol (13 channels):
     CH8  - Gamma:         0=-100, 128=0, 255=+100
     CH9  - Speed:         0=0.25x, 128=1.0x, 255=4.0x
     CH10 - Rotation:      0-63=0°, 64-127=90°, 128-191=180°, 192-255=270°
-    CH11 - Zoom:          0=-2.0, 128=0, 255=+2.0
+    CH11 - Zoom:          0=0.1x, 128=1.0x, 255=2.0x
     CH12 - Pan X:         0=-1.0, 128=0, 255=+1.0
     CH13 - Pan Y:         0=-1.0, 128=0, 255=+1.0
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import signal
 import socket
@@ -29,8 +30,12 @@ import threading
 
 from pi_mediaserver.config import Config, load_config
 from pi_mediaserver.dmx import Channellist, DMXReceiver
+from pi_mediaserver.logging_config import setup_logging
+from pi_mediaserver.ndi import read_ndi_file
 from pi_mediaserver.player import Player
 from pi_mediaserver.web import start_web_server
+
+log = logging.getLogger(__name__)
 
 # Systemd watchdog: try to import sd_notify helper.
 # sd-notify is optional — we degrade gracefully if unavailable.
@@ -63,10 +68,11 @@ class Server:
         self._stop_event = threading.Event()
         self._dmx_was_receiving = False
         self._dmx_fail_applied = False
+        self._ndi_starting = False  # Guard against re-entrant NDI start
 
     def start(self) -> None:
         """Start the media server."""
-        print(f"Pi Medienserver v3.5 — media path: {self.config.mediapath}")
+        log.info("Pi Medienserver v3.5 — media path: %s", self.config.mediapath)
         self.receiver.start()
 
         # Start web interface
@@ -74,6 +80,11 @@ class Server:
 
         # Start DMX fail mode watchdog
         self._start_dmx_watchdog()
+
+        # Start NDI discovery if available, apply saved bandwidth setting
+        if self.config.ndi_bandwidth:
+            self.player.set_ndi_bandwidth(self.config.ndi_bandwidth)
+        self.player.start_ndi_discovery()
 
         # Tell systemd we're ready
         _sd_notify("READY=1")
@@ -83,7 +94,7 @@ class Server:
 
     def stop(self) -> None:
         """Gracefully shut down the server."""
-        print("\nShutting down...")
+        log.info("Shutting down...")
         self.receiver.stop()
         self.player.shutdown()
         self._stop_event.set()
@@ -99,24 +110,28 @@ class Server:
                     _sd_notify("WATCHDOG=1")
 
                     receiving = self.receiver.is_receiving
+                    ndi_active = self.player.ndi_source is not None
                     if self._dmx_was_receiving and not receiving:
-                        # Signal just lost — apply fail mode + optional OSD
-                        self._apply_dmx_fail_mode()
+                        # Signal just lost — apply fail mode (skip during NDI)
+                        if not ndi_active:
+                            self._apply_dmx_fail_mode()
+                        else:
+                            self._dmx_fail_applied = True
                     elif not receiving and self._dmx_fail_applied:
-                        # Still lost — keep OSD visible if enabled
-                        if self.config.dmx_fail_osd:
+                        # Still lost — show OSD only if main mpv is alive
+                        if self.config.dmx_fail_osd and not ndi_active:
                             self.player.show_osd("DMX Signal Lost", duration=3.0)
                     elif receiving and self._dmx_fail_applied:
                         # Signal restored — clear fail state and re-apply DMX values
                         self._dmx_fail_applied = False
-                        print("DMX signal restored")
+                        log.info("DMX signal restored")
                         if self.config.dmx_fail_osd:
                             self.player.show_osd("DMX Signal Restored", duration=2.0)
                         # Re-apply all DMX values to resume playback
                         self._reapply_dmx_state()
                     self._dmx_was_receiving = receiving
                 except Exception as exc:
-                    print(f"[Watchdog] error: {exc}")
+                    log.error("Watchdog error: %s", exc)
                 self._stop_event.wait(2.0)
 
         t = threading.Thread(target=_watchdog, daemon=True)
@@ -125,7 +140,7 @@ class Server:
     def _apply_dmx_fail_mode(self) -> None:
         """Apply the configured DMX fail mode when signal is lost."""
         mode = self.config.dmx_fail_mode
-        print(f"DMX signal lost — applying fail mode: {mode}")
+        log.warning("DMX signal lost — applying fail mode: %s", mode)
         self._dmx_fail_applied = True
 
         if mode == "blackout":
@@ -134,6 +149,31 @@ class Server:
 
         if self.config.dmx_fail_osd:
             self.player.show_osd("DMX Signal Lost", duration=3.0)
+
+    def _play_media(self, path: str, loop: bool = False) -> None:
+        """Play a media file, stream URL, or NDI source.
+
+        Handles ndi:// URLs by calling player.play_ndi() in a background
+        thread to avoid blocking the DMX callback thread.
+        """
+        if path.startswith("ndi://"):
+            source_name = path[6:]  # Remove "ndi://" prefix
+            if self._ndi_starting:
+                return  # Already starting an NDI source
+            self._ndi_starting = True
+
+            def _start_ndi() -> None:
+                try:
+                    if not self.player.play_ndi(source_name):
+                        log.error("Failed to play NDI source: %s", source_name)
+                finally:
+                    self._ndi_starting = False
+
+            threading.Thread(
+                target=_start_ndi, daemon=True, name="NDI-Start"
+            ).start()
+        else:
+            self.player.play(path, loop=loop)
 
     def _reapply_dmx_state(self) -> None:
         """Force re-apply all current DMX values (used after signal restore)."""
@@ -168,14 +208,14 @@ class Server:
         if file_index > 0:
             path = self._resolve_media(folder_index, file_index)
             if path:
-                self.player.play(path, loop=channels.loop_enabled)
+                self._play_media(path, loop=channels.loop_enabled)
 
     def _on_dmx_update(self, channels: Channellist) -> None:
         """Handle incoming DMX frame with changed values."""
         try:
             self._apply_dmx_channels(channels)
         except Exception as exc:
-            print(f"[Server] DMX update error: {exc}")
+            log.error("DMX update error: %s", exc)
 
     def _apply_dmx_channels(self, channels: Channellist) -> None:
         """Apply DMX channel values to the player (called from _on_dmx_update)."""
@@ -221,7 +261,7 @@ class Server:
         # Resolve file path from DMX values
         path = self._resolve_media(folder_index, file_index)
         if path:
-            self.player.play(path, loop=loop)
+            self._play_media(path, loop=loop)
         else:
             self.player.stop()
 
@@ -229,9 +269,11 @@ class Server:
         """Resolve a media path from folder and file indices.
 
         If the resolved file is a .txt, reads the first line as a stream URL.
+        If the resolved file is a .ndi, reads the first line as an NDI source
+        name and returns an ndi:// URL.
 
         Returns:
-            Absolute path to a media file, a stream URL, or None.
+            Absolute path to a media file, a stream URL, an ndi:// URL, or None.
         """
         path = self._resolve_path(folder_index, file_index)
         if path is None:
@@ -240,6 +282,15 @@ class Server:
         # .txt files contain a stream URL on the first line
         if path.lower().endswith(".txt"):
             return self._read_url_file(path)
+
+        # .ndi files contain an NDI source name on the first line
+        if path.lower().endswith(".ndi"):
+            source_name = read_ndi_file(path)
+            if source_name:
+                log.info("Resolved NDI source from '%s': %s", os.path.basename(path), source_name)
+                return f"ndi://{source_name}"
+            log.warning("NDI file is empty or invalid: %s", path)
+            return None
 
         return path
 
@@ -254,12 +305,12 @@ class Server:
             with open(path, "r", encoding="utf-8") as f:
                 url = f.readline().strip()
             if url:
-                print(f"Resolved URL from '{os.path.basename(path)}': {url}")
+                log.info("Resolved URL from '%s': %s", os.path.basename(path), url)
                 return url
-            print(f"URL file is empty: {path}")
+            log.warning("URL file is empty: %s", path)
             return None
-        except OSError as e:
-            print(f"Cannot read URL file '{path}': {e}")
+        except Exception as e:
+            log.error("Cannot read URL file '%s': %s", path, e)
             return None
 
     def _resolve_path(self, folder_index: int, file_index: int) -> str | None:
@@ -276,18 +327,18 @@ class Server:
         try:
             folders = sorted(os.listdir(mediapath))
         except FileNotFoundError:
-            print(f"Media directory not found: {mediapath}")
+            log.error("Media directory not found: %s", mediapath)
             return None
 
         if folder_index >= len(folders):
-            print(f"Folder index {folder_index} out of range (have {len(folders)} folders)")
+            log.warning("Folder index %d out of range (have %d folders)", folder_index, len(folders))
             return None
 
         folder = folders[folder_index]
         folder_path = os.path.join(mediapath, folder)
 
         if not os.path.isdir(folder_path):
-            print(f"Not a directory: {folder_path}")
+            log.error("Not a directory: %s", folder_path)
             return None
 
         try:
@@ -298,7 +349,7 @@ class Server:
         # file_index is 1-based (0 = stop is handled before calling this)
         idx = file_index - 1
         if idx >= len(files):
-            print(f"File index {file_index} out of range (have {len(files)} files in '{folder}')")
+            log.warning("File index %d out of range (have %d files in '%s')", file_index, len(files), folder)
             return None
 
         return os.path.join(folder_path, files[idx])
@@ -306,6 +357,7 @@ class Server:
 
 def main() -> None:
     """Entry point for the media server."""
+    setup_logging()
     config = load_config()
     server = Server(config)
 
@@ -321,7 +373,7 @@ def main() -> None:
     except KeyboardInterrupt:
         server.stop()
     except Exception as exc:
-        print(f"[Server] Fatal error: {exc}")
+        log.critical("Fatal error: %s", exc)
         server.stop()
     finally:
         _sd_notify("STOPPING=1")
