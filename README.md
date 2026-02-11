@@ -218,6 +218,12 @@ Mediaserver-Python/
 | POST | `/api/folder/delete` | Delete a folder |
 | POST | `/api/file/content` | Write `.txt` file contents |
 | POST | `/api/video-params` | Set video effect parameters |
+| GET | `/api/wifi/status` | WiFi connection status |
+| GET | `/api/wifi/networks` | Scan for available WiFi networks |
+| POST | `/api/wifi/connect` | Connect to a WiFi network |
+| POST | `/api/wifi/disconnect` | Disconnect from WiFi |
+| POST | `/api/wifi/enable` | Enable WiFi radio |
+| POST | `/api/wifi/disable` | Disable WiFi radio |
 
 ## Previous Versions
 

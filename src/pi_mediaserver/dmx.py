@@ -18,6 +18,8 @@ DMX Protocol (13 channels starting at configured address):
 
 from __future__ import annotations
 
+import subprocess
+import threading
 import time
 from typing import TYPE_CHECKING, Callable
 
@@ -224,8 +226,35 @@ class Channellist:
         )
 
 
+def _get_interface_ips() -> set[str]:
+    """Get IP addresses of up network interfaces (eth*, wlan*)."""
+    ips: set[str] = set()
+    try:
+        result = subprocess.run(
+            ["ip", "-4", "-o", "addr", "show"],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.strip().split("\n"):
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 4:
+                iface = parts[1].rstrip(":")
+                if iface.startswith(("eth", "wlan")):
+                    for i, part in enumerate(parts):
+                        if part == "inet" and i + 1 < len(parts):
+                            ips.add(parts[i + 1].split("/")[0])
+                            break
+    except Exception:
+        pass
+    return ips
+
+
 class DMXReceiver:
-    """sACN receiver wrapper that calls back on DMX frame updates."""
+    """sACN receiver wrapper that calls back on DMX frame updates.
+
+    Monitors network interfaces and rejoins multicast when interfaces change.
+    """
 
     def __init__(self, universe: int, address: int) -> None:
         self.universe = universe
@@ -234,6 +263,9 @@ class DMXReceiver:
         self._callback: Callable[[Channellist], None] | None = None
         self._last_change_time: float = 0.0
         self._universe_available: bool = False
+        self._known_ips: set[str] = set()
+        self._net_monitor_stop = threading.Event()
+        self._net_monitor_thread: threading.Thread | None = None
 
     @property
     def is_receiving(self) -> bool:
@@ -256,6 +288,36 @@ class DMXReceiver:
         The callback receives the updated Channellist.
         """
         self._callback = callback
+
+    def _rejoin_multicast(self) -> None:
+        """Leave and rejoin the multicast group."""
+        try:
+            self._receiver.leave_multicast(self.universe)
+        except Exception:
+            pass
+        try:
+            self._receiver.join_multicast(self.universe)
+            print(f"sACN: multicast rejoined on universe {self.universe}")
+        except Exception as exc:
+            print(f"sACN: rejoin failed: {exc}")
+
+    def _network_monitor(self) -> None:
+        """Background thread that monitors network interface changes."""
+        while not self._net_monitor_stop.wait(timeout=2.0):
+            try:
+                current_ips = _get_interface_ips()
+                if current_ips != self._known_ips:
+                    added = current_ips - self._known_ips
+                    removed = self._known_ips - current_ips
+                    if added:
+                        print(f"Network: interfaces added {added}")
+                    if removed:
+                        print(f"Network: interfaces removed {removed}")
+                    self._known_ips = current_ips
+                    # Rejoin multicast when network changes
+                    self._rejoin_multicast()
+            except Exception as exc:
+                print(f"[DMX] network monitor error: {exc}")
 
     def start(self) -> None:
         """Start listening for sACN packets."""
@@ -295,8 +357,21 @@ class DMXReceiver:
         self._receiver.join_multicast(self.universe)
         print(f"sACN receiver started on universe {self.universe}")
 
+        # Start network monitor to rejoin when interfaces change
+        self._known_ips = _get_interface_ips()
+        self._net_monitor_stop.clear()
+        self._net_monitor_thread = threading.Thread(
+            target=self._network_monitor, daemon=True, name="sACN-NetMonitor"
+        )
+        self._net_monitor_thread.start()
+
     def stop(self) -> None:
         """Stop the sACN receiver."""
+        # Stop network monitor
+        self._net_monitor_stop.set()
+        if self._net_monitor_thread:
+            self._net_monitor_thread.join(timeout=1.0)
+            self._net_monitor_thread = None
         try:
             self._receiver.leave_multicast(self.universe)
             self._receiver.stop()

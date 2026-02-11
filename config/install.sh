@@ -26,14 +26,14 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # ----- 1. Install systemd service -----
-echo "[1/4] Installing systemd service..."
+echo "[1/5] Installing systemd service..."
 cp "$SCRIPT_DIR/mediaserver.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable mediaserver
 echo "      mediaserver.service enabled"
 
 # ----- 2. Configure silent boot -----
-echo "[2/4] Configuring silent boot..."
+echo "[2/5] Configuring silent boot..."
 
 # Backup boot files
 cp -n "$CMDLINE" "$CMDLINE.bak" 2>/dev/null || true
@@ -70,7 +70,7 @@ if ! grep -q "disable_splash=1" "$CONFIG"; then
 fi
 
 # ----- 3. Disable unnecessary services -----
-echo "[3/4] Disabling unnecessary services..."
+echo "[3/5] Disabling unnecessary services..."
 
 SERVICES_TO_DISABLE=(
     "NetworkManager-wait-online.service"
@@ -95,8 +95,27 @@ done
 systemctl mask getty@tty1.service &>/dev/null || true
 echo "      Masked getty@tty1"
 
-# ----- 4. Hardware watchdog (optional) -----
-echo "[4/4] Hardware watchdog..."
+# ----- 4. WiFi management permissions -----
+echo "[4/5] Setting up WiFi management permissions..."
+POLKIT_RULE="/etc/polkit-1/rules.d/50-allow-pi-network.rules"
+if [[ ! -f "$POLKIT_RULE" ]]; then
+    cat > "$POLKIT_RULE" << 'EOFPK'
+// Allow user 'pi' to manage NetworkManager without authentication
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0 &&
+        subject.user === "pi") {
+        return polkit.Result.YES;
+    }
+});
+EOFPK
+    systemctl restart polkit &>/dev/null || true
+    echo "      Created polkit rule for WiFi management"
+else
+    echo "      Polkit rule already exists"
+fi
+
+# ----- 5. Hardware watchdog (optional) -----
+echo "[5/5] Hardware watchdog..."
 read -p "      Install hardware watchdog? (reboots Pi on system hang) [y/N]: " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then

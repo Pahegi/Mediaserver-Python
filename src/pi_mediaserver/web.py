@@ -336,6 +336,50 @@ _HTML_TEMPLATE = """\
   </form>
 </details>
 
+<!-- WiFi Settings -->
+<details id="wifi-settings">
+  <summary>WiFi Settings</summary>
+  <div style="margin-top:.6rem">
+    <div class="stat-row" style="margin-bottom:.5rem">
+      <span class="s-label">Status</span>
+      <span class="s-value" id="wifi-status-text">Checking...</span>
+    </div>
+    <div class="stat-row" style="margin-bottom:.5rem">
+      <span class="s-label">Network</span>
+      <span class="s-value" id="wifi-ssid">—</span>
+    </div>
+    <div class="stat-row" style="margin-bottom:.5rem">
+      <span class="s-label">Signal</span>
+      <span class="s-value" id="wifi-signal">—</span>
+    </div>
+    <div class="stat-row" style="margin-bottom:.8rem">
+      <span class="s-label">IP Address</span>
+      <span class="s-value" id="wifi-ip">—</span>
+    </div>
+    <hr class="section-sep">
+    <div style="margin-top:.8rem">
+      <label for="wifi-network-select" style="font-size:.85rem;opacity:.7">Connect to network:</label>
+      <div style="display:flex;gap:.5rem;margin-top:.3rem">
+        <select id="wifi-network-select" style="flex:1;padding:.35rem .5rem;margin-bottom:0">
+          <option value="">Scanning...</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="wifiScan()" title="Rescan">\u21BB</button>
+      </div>
+      <input type="password" id="wifi-password" placeholder="Password (if required)"
+             style="margin-top:.5rem;margin-bottom:0">
+      <div style="display:flex;gap:.5rem;margin-top:.6rem">
+        <button class="btn btn-primary btn-sm" onclick="wifiConnect()" style="flex:1">Connect</button>
+        <button class="btn btn-outline btn-sm" onclick="wifiDisconnect()">Disconnect</button>
+      </div>
+    </div>
+    <hr class="section-sep" style="margin-top:.8rem">
+    <div style="margin-top:.8rem;display:flex;gap:.5rem">
+      <button class="btn btn-outline btn-sm" onclick="wifiEnable()" id="wifi-enable-btn">Enable WiFi</button>
+      <button class="btn btn-danger btn-sm" onclick="wifiDisable()" id="wifi-disable-btn">Disable WiFi</button>
+    </div>
+  </div>
+</details>
+
 <!-- Media Library -->
 <article>
   <strong>Media Library</strong>
@@ -707,6 +751,129 @@ function refreshStatus() {{
   }});
 }}
 setInterval(refreshStatus, 2000);
+
+// ---------------------------------------------------------------------------
+// WiFi Management
+// ---------------------------------------------------------------------------
+function wifiRefreshStatus() {{
+  fetch('/api/wifi/status').then(r => r.json()).then(d => {{
+    if (!d.ok) return;
+    var statusEl = document.getElementById('wifi-status-text');
+    var ssidEl = document.getElementById('wifi-ssid');
+    var sigEl = document.getElementById('wifi-signal');
+    var ipEl = document.getElementById('wifi-ip');
+    var enableBtn = document.getElementById('wifi-enable-btn');
+    var disableBtn = document.getElementById('wifi-disable-btn');
+
+    if (!d.enabled) {{
+      statusEl.innerHTML = '<span class="badge off">Disabled</span>';
+      ssidEl.textContent = '—';
+      sigEl.textContent = '—';
+      ipEl.textContent = '—';
+      enableBtn.style.display = '';
+      disableBtn.style.display = 'none';
+    }} else if (d.connected) {{
+      statusEl.innerHTML = '<span class="badge on">Connected</span>';
+      ssidEl.textContent = d.ssid || '—';
+      sigEl.textContent = d.signal != null ? d.signal + '%' : '—';
+      ipEl.textContent = d.ip || '—';
+      enableBtn.style.display = 'none';
+      disableBtn.style.display = '';
+    }} else {{
+      statusEl.innerHTML = '<span class="badge paused">Disconnected</span>';
+      ssidEl.textContent = '—';
+      sigEl.textContent = '—';
+      ipEl.textContent = '—';
+      enableBtn.style.display = 'none';
+      disableBtn.style.display = '';
+    }}
+  }}).catch(() => {{}});
+}}
+
+function wifiScan() {{
+  var sel = document.getElementById('wifi-network-select');
+  sel.innerHTML = '<option value="">Scanning...</option>';
+  fetch('/api/wifi/networks').then(r => r.json()).then(d => {{
+    if (!d.ok) {{
+      sel.innerHTML = '<option value="">Scan failed</option>';
+      return;
+    }}
+    if (d.networks.length === 0) {{
+      sel.innerHTML = '<option value="">No networks found</option>';
+      return;
+    }}
+    sel.innerHTML = '<option value="">Select a network...</option>';
+    d.networks.forEach(n => {{
+      var opt = document.createElement('option');
+      opt.value = n.ssid;
+      opt.textContent = n.ssid + ' (' + n.signal + '%, ' + n.security + ')';
+      sel.appendChild(opt);
+    }});
+  }}).catch(() => {{
+    sel.innerHTML = '<option value="">Scan failed</option>';
+  }});
+}}
+
+function wifiConnect() {{
+  var ssid = document.getElementById('wifi-network-select').value;
+  var password = document.getElementById('wifi-password').value;
+  if (!ssid) {{
+    toast('Select a network first', 'err');
+    return;
+  }}
+  toast('Connecting to ' + ssid + '...', 'ok');
+  api('/api/wifi/connect', {{ ssid: ssid, password: password }}).then(d => {{
+    if (d.ok) {{
+      toast('Connected to ' + ssid, 'ok');
+      document.getElementById('wifi-password').value = '';
+      setTimeout(wifiRefreshStatus, 1000);
+    }} else {{
+      toast('Failed: ' + (d.error || 'Unknown error'), 'err');
+    }}
+  }}).catch(() => toast('Connection error', 'err'));
+}}
+
+function wifiDisconnect() {{
+  api('/api/wifi/disconnect', {{}}).then(d => {{
+    if (d.ok) {{
+      toast('Disconnected', 'ok');
+      setTimeout(wifiRefreshStatus, 500);
+    }} else {{
+      toast('Failed: ' + (d.error || 'Unknown error'), 'err');
+    }}
+  }}).catch(() => toast('Error', 'err'));
+}}
+
+function wifiEnable() {{
+  api('/api/wifi/enable', {{}}).then(d => {{
+    if (d.ok) {{
+      toast('WiFi enabled', 'ok');
+      setTimeout(() => {{ wifiRefreshStatus(); wifiScan(); }}, 1000);
+    }} else {{
+      toast('Failed: ' + (d.error || 'Unknown error'), 'err');
+    }}
+  }}).catch(() => toast('Error', 'err'));
+}}
+
+function wifiDisable() {{
+  if (!confirm('Disable WiFi? You will lose WiFi connectivity.')) return;
+  api('/api/wifi/disable', {{}}).then(d => {{
+    if (d.ok) {{
+      toast('WiFi disabled', 'ok');
+      setTimeout(wifiRefreshStatus, 500);
+    }} else {{
+      toast('Failed: ' + (d.error || 'Unknown error'), 'err');
+    }}
+  }}).catch(() => toast('Error', 'err'));
+}}
+
+// Load WiFi status and networks when the section is opened
+document.getElementById('wifi-settings').addEventListener('toggle', function(e) {{
+  if (e.target.open) {{
+    wifiRefreshStatus();
+    wifiScan();
+  }}
+}});
 </script>
 </body>
 </html>
@@ -746,6 +913,10 @@ class _WebHandler(BaseHTTPRequestHandler):
                 self._serve_json({"ok": True, **self.server_ref.player.video_params})
             elif self.path == "/api/health":
                 self._serve_json({"ok": True, "status": "running"})
+            elif self.path == "/api/wifi/status":
+                self._handle_wifi_status()
+            elif self.path == "/api/wifi/networks":
+                self._handle_wifi_scan()
             else:
                 self.send_error(404)
         except Exception as exc:
@@ -775,6 +946,14 @@ class _WebHandler(BaseHTTPRequestHandler):
                 self._handle_write_file()
             elif self.path == "/api/video-params":
                 self._handle_video_params()
+            elif self.path == "/api/wifi/connect":
+                self._handle_wifi_connect()
+            elif self.path == "/api/wifi/disconnect":
+                self._handle_wifi_disconnect()
+            elif self.path == "/api/wifi/enable":
+                self._handle_wifi_enable()
+            elif self.path == "/api/wifi/disable":
+                self._handle_wifi_disable()
             else:
                 self.send_error(404)
         except Exception as exc:
@@ -1547,6 +1726,201 @@ class _WebHandler(BaseHTTPRequestHandler):
             return
 
         self._serve_json({"ok": True, **player.video_params})
+
+    # =====================================================================
+    # WiFi management
+    # =====================================================================
+
+    def _handle_wifi_status(self) -> None:
+        """GET /api/wifi/status — current WiFi connection status."""
+        try:
+            # Check if WiFi radio is enabled
+            radio_out = subprocess.run(
+                ["nmcli", "radio", "wifi"],
+                capture_output=True, text=True, timeout=5
+            )
+            wifi_enabled = radio_out.stdout.strip() == "enabled"
+
+            if not wifi_enabled:
+                self._serve_json({
+                    "ok": True,
+                    "enabled": False,
+                    "connected": False,
+                    "ssid": None,
+                    "signal": None,
+                    "ip": None,
+                })
+                return
+
+            # Get current connection
+            conn_out = subprocess.run(
+                ["nmcli", "-t", "-f", "ACTIVE,SSID,SIGNAL", "dev", "wifi"],
+                capture_output=True, text=True, timeout=5
+            )
+            ssid = None
+            signal = None
+            for line in conn_out.stdout.strip().split("\n"):
+                parts = line.split(":")
+                if len(parts) >= 3 and parts[0] == "yes":
+                    ssid = parts[1]
+                    signal = int(parts[2]) if parts[2].isdigit() else None
+                    break
+
+            # Get IP address
+            ip = None
+            if ssid:
+                ip_out = subprocess.run(
+                    ["nmcli", "-t", "-f", "IP4.ADDRESS", "dev", "show", "wlan0"],
+                    capture_output=True, text=True, timeout=5
+                )
+                for line in ip_out.stdout.strip().split("\n"):
+                    if line.startswith("IP4.ADDRESS"):
+                        ip = line.split(":")[1].split("/")[0] if ":" in line else None
+                        break
+
+            self._serve_json({
+                "ok": True,
+                "enabled": True,
+                "connected": ssid is not None,
+                "ssid": ssid,
+                "signal": signal,
+                "ip": ip,
+            })
+        except Exception as exc:
+            self._serve_json({"ok": False, "error": str(exc)}, code=500)
+
+    def _handle_wifi_scan(self) -> None:
+        """GET /api/wifi/networks — scan for available WiFi networks."""
+        try:
+            # Trigger a rescan
+            subprocess.run(
+                ["nmcli", "dev", "wifi", "rescan"],
+                capture_output=True, timeout=10
+            )
+            # List networks
+            out = subprocess.run(
+                ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list"],
+                capture_output=True, text=True, timeout=10
+            )
+            networks = []
+            seen = set()
+            for line in out.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                parts = line.split(":")
+                if len(parts) >= 3:
+                    ssid = parts[0]
+                    if not ssid or ssid in seen:
+                        continue
+                    seen.add(ssid)
+                    networks.append({
+                        "ssid": ssid,
+                        "signal": int(parts[1]) if parts[1].isdigit() else 0,
+                        "security": parts[2] if parts[2] else "Open",
+                    })
+            # Sort by signal strength
+            networks.sort(key=lambda x: x["signal"], reverse=True)
+            self._serve_json({"ok": True, "networks": networks})
+        except Exception as exc:
+            self._serve_json({"ok": False, "error": str(exc)}, code=500)
+
+    def _handle_wifi_connect(self) -> None:
+        """POST /api/wifi/connect — connect to a WiFi network."""
+        data = self._read_json_body()
+        if data is None:
+            return
+
+        ssid = data.get("ssid", "").strip()
+        password = data.get("password", "")
+
+        if not ssid:
+            self._serve_json({"ok": False, "error": "Missing SSID"}, code=400)
+            return
+
+        try:
+            # Delete any existing connection profiles containing this SSID (by UUID)
+            # This avoids issues with special characters in connection names
+            list_result = subprocess.run(
+                ["nmcli", "-t", "-f", "NAME,UUID,TYPE", "connection", "show"],
+                capture_output=True, text=True, timeout=10
+            )
+            for line in list_result.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                parts = line.split(":")
+                if len(parts) >= 3 and "wireless" in parts[2]:
+                    name, uuid = parts[0], parts[1]
+                    if ssid in name:
+                        subprocess.run(
+                            ["nmcli", "connection", "delete", uuid],
+                            capture_output=True, text=True, timeout=10
+                        )
+
+            # Connect (creates fresh profile)
+            cmd = ["nmcli", "dev", "wifi", "connect", ssid]
+            if password:
+                cmd.extend(["password", password])
+
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=30
+            )
+
+            if result.returncode == 0:
+                print(f"[WiFi] Connected to '{ssid}'")
+                self._serve_json({"ok": True})
+            else:
+                error = result.stderr.strip() or result.stdout.strip()
+                print(f"[WiFi] Failed to connect to '{ssid}': {error}")
+                self._serve_json({"ok": False, "error": error}, code=400)
+        except subprocess.TimeoutExpired:
+            self._serve_json({"ok": False, "error": "Connection timeout"}, code=500)
+        except Exception as exc:
+            self._serve_json({"ok": False, "error": str(exc)}, code=500)
+
+    def _handle_wifi_disconnect(self) -> None:
+        """POST /api/wifi/disconnect — disconnect from current WiFi."""
+        try:
+            result = subprocess.run(
+                ["nmcli", "dev", "disconnect", "wlan0"],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                print("[WiFi] Disconnected")
+                self._serve_json({"ok": True})
+            else:
+                self._serve_json({"ok": False, "error": result.stderr.strip()}, code=400)
+        except Exception as exc:
+            self._serve_json({"ok": False, "error": str(exc)}, code=500)
+
+    def _handle_wifi_enable(self) -> None:
+        """POST /api/wifi/enable — enable WiFi radio."""
+        try:
+            result = subprocess.run(
+                ["nmcli", "radio", "wifi", "on"],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                print("[WiFi] Radio enabled")
+                self._serve_json({"ok": True})
+            else:
+                self._serve_json({"ok": False, "error": result.stderr.strip()}, code=400)
+        except Exception as exc:
+            self._serve_json({"ok": False, "error": str(exc)}, code=500)
+
+    def _handle_wifi_disable(self) -> None:
+        """POST /api/wifi/disable — disable WiFi radio."""
+        try:
+            result = subprocess.run(
+                ["nmcli", "radio", "wifi", "off"],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                print("[WiFi] Radio disabled")
+                self._serve_json({"ok": True})
+            else:
+                self._serve_json({"ok": False, "error": result.stderr.strip()}, code=400)
+        except Exception as exc:
+            self._serve_json({"ok": False, "error": str(exc)}, code=500)
 
     # =====================================================================
     # Shared helpers

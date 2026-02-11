@@ -107,11 +107,13 @@ class Server:
                         if self.config.dmx_fail_osd:
                             self.player.show_osd("DMX Signal Lost", duration=3.0)
                     elif receiving and self._dmx_fail_applied:
-                        # Signal restored — clear fail state
+                        # Signal restored — clear fail state and re-apply DMX values
                         self._dmx_fail_applied = False
                         print("DMX signal restored")
                         if self.config.dmx_fail_osd:
                             self.player.show_osd("DMX Signal Restored", duration=2.0)
+                        # Re-apply all DMX values to resume playback
+                        self._reapply_dmx_state()
                     self._dmx_was_receiving = receiving
                 except Exception as exc:
                     print(f"[Watchdog] error: {exc}")
@@ -132,6 +134,41 @@ class Server:
 
         if self.config.dmx_fail_osd:
             self.player.show_osd("DMX Signal Lost", duration=3.0)
+
+    def _reapply_dmx_state(self) -> None:
+        """Force re-apply all current DMX values (used after signal restore)."""
+        channels = self.receiver.channellist
+        # Skip if we never received valid data
+        if channels.get(0) < 0:
+            return
+
+        # Apply all continuous controls
+        self.player.volume = channels.volume
+        self.player.brightness = channels.brightness
+        self.player.contrast = channels.contrast
+        self.player.saturation = channels.saturation
+        self.player.gamma = channels.gamma
+        self.player.speed = channels.speed
+        self.player.rotation = channels.rotation
+        self.player.zoom = channels.zoom
+        self.player.pan_x = channels.pan_x
+        self.player.pan_y = channels.pan_y
+
+        # Apply playmode
+        mode = channels.play_mode
+        if mode == "pause":
+            self.player.paused = True
+        else:
+            self.player.paused = False
+            self.player.loop = mode == "loop"
+
+        # Resume file playback if a file was selected
+        file_index = channels.file_index
+        folder_index = channels.folder_index
+        if file_index > 0:
+            path = self._resolve_media(folder_index, file_index)
+            if path:
+                self.player.play(path, loop=channels.loop_enabled)
 
     def _on_dmx_update(self, channels: Channellist) -> None:
         """Handle incoming DMX frame with changed values."""
