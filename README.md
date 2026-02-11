@@ -134,48 +134,16 @@ mediaserver
 poetry run python -m pi_mediaserver.main
 ```
 
-### Autostart (systemd) — recommended
-
-The included service file uses `Type=notify` with a systemd watchdog — the
-server pings systemd every 2 seconds and gets auto-restarted if it stops
-responding for 30 s.
+### Autostart & Silent Boot
 
 ```bash
-# Copy the service file
-sudo cp config/mediaserver.service /etc/systemd/system/
-
-# Ensure the pi user can access the GPU
-sudo usermod -aG video pi
-
-# Enable and start
-sudo systemctl daemon-reload
-sudo systemctl enable --now mediaserver
-
-# Check status / logs
-sudo systemctl status mediaserver
-journalctl -u mediaserver -f
-```
-
-### Hardware Watchdog (optional)
-
-The Pi 5 has a built-in hardware watchdog. Combined with the systemd service
-watchdog this gives **two layers** of resilience:
-
-1. **Process hang** → systemd kills & restarts the mediaserver within 30 s
-2. **System hang** → hardware watchdog reboots the entire Pi within 15 s
-
-```bash
-sudo bash config/setup-watchdog.sh
+sudo bash config/install.sh
 sudo reboot
 ```
 
-### Autostart (crontab alternative)
-
-```bash
-crontab -e
-# Add:
-@reboot sleep 10 && cd /home/pi/Mediaserver-Python && /home/pi/.local/bin/poetry run mediaserver
-```
+This installs the systemd service (with auto-restart and watchdog), configures
+silent boot (black screen until video plays), and optionally enables the
+hardware watchdog.
 
 ### SSH Usage
 
@@ -184,31 +152,6 @@ No environment variables needed — DRM outputs directly to the display. Just en
 ```bash
 sudo usermod -aG video pi
 # Log out and back in for group change to take effect
-```
-
-### HDMI Audio
-
-If HDMI audio is not detected automatically, install a custom EDID override:
-
-```bash
-# Copy the custom EDID (forces audio capability advertisement)
-sudo cp custom-hdmi-audio.bin /lib/firmware/edid/custom-hdmi-audio.bin
-
-# Add kernel parameter
-sudo sed -i 's|$| video=HDMI-A-2:e|' /boot/firmware/cmdline.txt
-
-# WirePlumber override to prefer HDMI
-mkdir -p ~/.config/wireplumber/wireplumber.conf.d/
-cat > ~/.config/wireplumber/wireplumber.conf.d/51-hdmi-audio.conf << 'EOF'
-monitor.alsa.rules = [
-  {
-    matches = [ { node.name = "~alsa_output.platform-axi:cs42l43:0*" } ]
-    actions = { update-props = { priority.session = 0 } }
-  }
-]
-EOF
-
-sudo reboot
 ```
 
 ## Development
@@ -234,6 +177,7 @@ Mediaserver-Python/
 ├── features.txt                # Feature backlog / research notes
 ├── config/
 │   ├── config.txt              # Default config template
+│   ├── install.sh              # Full installation script (service + silent boot)
 │   ├── mediaserver.service     # systemd unit file (Type=notify + watchdog)
 │   └── setup-watchdog.sh       # Hardware watchdog setup script
 ├── fixtures/                   # grandMA2 fixture profiles

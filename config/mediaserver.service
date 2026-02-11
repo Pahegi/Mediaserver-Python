@@ -5,13 +5,13 @@
 
 [Unit]
 Description=Pi Medienserver (DMX/sACN media server)
-After=network-online.target sound.target
-Wants=network-online.target
+After=network.target sound.target
 
 [Service]
 Type=notify
 User=pi
 WorkingDirectory=/home/pi/Mediaserver-Python
+ExecStartPre=+/bin/sh -c '/usr/bin/setterm --term linux --blank force --clear all < /dev/tty1 > /dev/tty1'
 ExecStart=/home/pi/.local/bin/poetry run mediaserver
 
 # Auto-restart on crash / exit
