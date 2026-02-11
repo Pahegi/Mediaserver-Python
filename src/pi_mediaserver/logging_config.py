@@ -3,8 +3,6 @@
 Provides colored console output with timestamps.
 """
 
-from __future__ import annotations
-
 import logging
 import sys
 from typing import ClassVar

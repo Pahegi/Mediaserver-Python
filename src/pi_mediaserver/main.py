@@ -19,20 +19,19 @@ DMX Protocol (13 channels):
     CH13 - Pan Y:         0=-1.0, 128=0, 255=+1.0
 """
 
-from __future__ import annotations
-
 import logging
 import os
 import signal
 import socket
 import sys
 import threading
+from pathlib import Path
 
 from pi_mediaserver.config import Config, load_config
 from pi_mediaserver.dmx import Channellist, DMXReceiver
 from pi_mediaserver.logging_config import setup_logging
 from pi_mediaserver.ndi import read_ndi_file
-from pi_mediaserver.player import Player
+from pi_mediaserver.player import Player, PlayerState
 from pi_mediaserver.web import start_web_server
 
 log = logging.getLogger(__name__)
@@ -63,6 +62,7 @@ class Server:
     def __init__(self, config: Config) -> None:
         self.config = config
         self.player = Player()
+        self.player.osd_enabled = config.dmx_fail_osd
         self.receiver = DMXReceiver(config.universe, config.address)
         self.receiver.on_update(self._on_dmx_update)
         self._stop_event = threading.Event()
@@ -171,6 +171,25 @@ class Server:
         else:
             self.player.play(path, loop=loop)
 
+    @staticmethod
+    def _build_player_state(channels: Channellist) -> PlayerState:
+        """Build a PlayerState snapshot from current DMX channel values."""
+        mode = channels.play_mode
+        return PlayerState(
+            volume=channels.volume,
+            brightness=channels.brightness,
+            contrast=channels.contrast,
+            saturation=channels.saturation,
+            gamma=channels.gamma,
+            speed=channels.speed,
+            rotation=channels.rotation,
+            zoom=channels.zoom,
+            pan_x=channels.pan_x,
+            pan_y=channels.pan_y,
+            paused=mode == "pause",
+            loop=mode == "loop",
+        )
+
     def _reapply_dmx_state(self) -> None:
         """Force re-apply all current DMX values (used after signal restore)."""
         channels = self.receiver.channellist
@@ -178,25 +197,7 @@ class Server:
         if channels.get(0) < 0:
             return
 
-        # Apply all continuous controls
-        self.player.volume = channels.volume
-        self.player.brightness = channels.brightness
-        self.player.contrast = channels.contrast
-        self.player.saturation = channels.saturation
-        self.player.gamma = channels.gamma
-        self.player.speed = channels.speed
-        self.player.rotation = channels.rotation
-        self.player.zoom = channels.zoom
-        self.player.pan_x = channels.pan_x
-        self.player.pan_y = channels.pan_y
-
-        # Apply playmode
-        mode = channels.play_mode
-        if mode == "pause":
-            self.player.paused = True
-        else:
-            self.player.paused = False
-            self.player.loop = mode == "loop"
+        self.player.apply_state(self._build_player_state(channels))
 
         # Resume file playback if a file was selected
         file_index = channels.file_index
@@ -215,7 +216,11 @@ class Server:
 
     def _apply_dmx_channels(self, channels: Channellist) -> None:
         """Apply DMX channel values to the player (called from _on_dmx_update)."""
-        # Always apply continuous controls
+        log.debug(
+            "Applying DMX: file=%d folder=%d mode=%s vol=%d",
+            channels.file_index, channels.folder_index, channels.play_mode, channels.volume,
+        )
+        # Always apply volume and brightness
         self.player.volume = channels.volume
         self.player.brightness = channels.brightness
 
@@ -233,12 +238,8 @@ class Server:
         # Handle playmode changes (pause / resume / loop toggle)
         if channels.playmode_changed:
             mode = channels.play_mode
-            if mode == "pause":
-                self.player.paused = True
-            else:
-                # Resume if we were paused
-                self.player.paused = False
-                # Update loop state live
+            self.player.paused = mode == "pause"
+            if mode != "pause":
                 self.player.loop = mode == "loop"
 
         # Only handle file/folder changes below
@@ -247,7 +248,6 @@ class Server:
 
         file_index = channels.file_index
         folder_index = channels.folder_index
-        loop = channels.loop_enabled
 
         # File index 0 = stop playback
         if file_index == 0:
@@ -261,7 +261,7 @@ class Server:
         # Resolve file path from DMX values
         path = self._resolve_media(folder_index, file_index)
         if path:
-            self._play_media(path, loop=loop)
+            self._play_media(path, loop=channels.loop_enabled)
         else:
             self.player.stop()
 
@@ -275,37 +275,39 @@ class Server:
         Returns:
             Absolute path to a media file, a stream URL, an ndi:// URL, or None.
         """
-        path = self._resolve_path(folder_index, file_index)
-        if path is None:
+        resolved = self._resolve_path(folder_index, file_index)
+        if resolved is None:
             return None
 
+        path = Path(resolved)
+        suffix = path.suffix.lower()
+
         # .txt files contain a stream URL on the first line
-        if path.lower().endswith(".txt"):
+        if suffix == ".txt":
             return self._read_url_file(path)
 
         # .ndi files contain an NDI source name on the first line
-        if path.lower().endswith(".ndi"):
-            source_name = read_ndi_file(path)
+        if suffix == ".ndi":
+            source_name = read_ndi_file(str(path))
             if source_name:
-                log.info("Resolved NDI source from '%s': %s", os.path.basename(path), source_name)
+                log.info("Resolved NDI source from '%s': %s", path.name, source_name)
                 return f"ndi://{source_name}"
             log.warning("NDI file is empty or invalid: %s", path)
             return None
 
-        return path
+        return resolved
 
     @staticmethod
-    def _read_url_file(path: str) -> str | None:
+    def _read_url_file(path: Path) -> str | None:
         """Read a stream URL from a .txt file.
 
         Returns:
             The URL string, or None if the file is empty/unreadable.
         """
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                url = f.readline().strip()
+            url = path.read_text(encoding="utf-8").split("\n", 1)[0].strip()
             if url:
-                log.info("Resolved URL from '%s': %s", os.path.basename(path), url)
+                log.info("Resolved URL from '%s': %s", path.name, url)
                 return url
             log.warning("URL file is empty: %s", path)
             return None
@@ -322,37 +324,34 @@ class Server:
         Returns:
             Absolute path to the media file, or None if indices are out of range.
         """
-        mediapath = self.config.mediapath
+        media_dir = Path(self.config.mediapath)
 
-        try:
-            folders = sorted(os.listdir(mediapath))
-        except FileNotFoundError:
-            log.error("Media directory not found: %s", mediapath)
+        if not media_dir.is_dir():
+            log.error("Media directory not found: %s", media_dir)
             return None
 
+        folders = sorted(p for p in media_dir.iterdir() if p.is_dir())
         if folder_index >= len(folders):
             log.warning("Folder index %d out of range (have %d folders)", folder_index, len(folders))
             return None
 
-        folder = folders[folder_index]
-        folder_path = os.path.join(mediapath, folder)
-
-        if not os.path.isdir(folder_path):
-            log.error("Not a directory: %s", folder_path)
-            return None
+        folder_path = folders[folder_index]
 
         try:
-            files = sorted(os.listdir(folder_path))
+            files = sorted(p.name for p in folder_path.iterdir() if p.is_file())
         except OSError:
             return None
 
         # file_index is 1-based (0 = stop is handled before calling this)
         idx = file_index - 1
         if idx >= len(files):
-            log.warning("File index %d out of range (have %d files in '%s')", file_index, len(files), folder)
+            log.warning(
+                "File index %d out of range (have %d files in '%s')",
+                file_index, len(files), folder_path.name,
+            )
             return None
 
-        return os.path.join(folder_path, files[idx])
+        return str(folder_path / files[idx])
 
 
 def main() -> None:

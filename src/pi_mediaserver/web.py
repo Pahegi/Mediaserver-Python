@@ -20,7 +20,7 @@ import socket
 import subprocess
 import threading
 from functools import partial
-from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs
 
@@ -1722,14 +1722,12 @@ class _WebHandler(BaseHTTPRequestHandler):
         data = self._read_json_body()
         if data is None:
             return
-
-        folder = data.get("folder", "")
-        old_name = data.get("old_name", "")
-        new_name = data.get("new_name", "")
-
-        if not all([folder, old_name, new_name]):
-            self._serve_json({"ok": False, "error": "Missing fields"}, code=400)
+        if not self._require_keys(data, "folder", "old_name", "new_name"):
             return
+
+        folder = data["folder"]
+        old_name = data["old_name"]
+        new_name = data["new_name"]
         if "/" in new_name or "\\" in new_name:
             self._serve_json({"ok": False, "error": "Invalid filename"}, code=400)
             return
@@ -1758,13 +1756,12 @@ class _WebHandler(BaseHTTPRequestHandler):
         if data is None:
             return
 
-        file_name = data.get("file", "")
-        from_folder = data.get("from_folder", "")
-        to_folder = data.get("to_folder", "")
-
-        if not all([file_name, from_folder, to_folder]):
-            self._serve_json({"ok": False, "error": "Missing fields"}, code=400)
+        if not self._require_keys(data, "file", "from_folder", "to_folder"):
             return
+
+        file_name = data["file"]
+        from_folder = data["from_folder"]
+        to_folder = data["to_folder"]
 
         mediapath = self.server_ref.config.mediapath
         src = os.path.join(mediapath, from_folder, file_name)
@@ -1794,13 +1791,11 @@ class _WebHandler(BaseHTTPRequestHandler):
         if data is None:
             return
 
-        folder = data.get("folder", "")
-        file_name = data.get("file", "")
-
-        if not all([folder, file_name]):
-            self._serve_json({"ok": False, "error": "Missing fields"}, code=400)
+        if not self._require_keys(data, "folder", "file"):
             return
 
+        folder = data["folder"]
+        file_name = data["file"]
         mediapath = self.server_ref.config.mediapath
         path = os.path.join(mediapath, folder, file_name)
 
@@ -1844,13 +1839,11 @@ class _WebHandler(BaseHTTPRequestHandler):
         data = self._read_json_body()
         if data is None:
             return
-
-        old_name = data.get("old_name", "").strip()
-        new_name = data.get("new_name", "").strip()
-
-        if not all([old_name, new_name]):
-            self._serve_json({"ok": False, "error": "Missing fields"}, code=400)
+        if not self._require_keys(data, "old_name", "new_name"):
             return
+
+        old_name = data["old_name"].strip()
+        new_name = data["new_name"].strip()
         if "/" in new_name or "\\" in new_name:
             self._serve_json({"ok": False, "error": "Invalid folder name"}, code=400)
             return
@@ -1874,11 +1867,10 @@ class _WebHandler(BaseHTTPRequestHandler):
         data = self._read_json_body()
         if data is None:
             return
-
-        name = data.get("name", "").strip()
-        if not name:
-            self._serve_json({"ok": False, "error": "Missing folder name"}, code=400)
+        if not self._require_keys(data, "name"):
             return
+
+        name = data["name"].strip()
 
         mediapath = self.server_ref.config.mediapath
         folder_path = os.path.join(mediapath, name)
@@ -2346,6 +2338,23 @@ class _WebHandler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, ValueError):
             self._serve_json({"ok": False, "error": "Invalid JSON"}, code=400)
             return None
+
+    def _require_keys(self, data: dict, *keys: str) -> bool:
+        """Validate that all required keys are present and non-empty.
+
+        Sends a 400 response with missing key details if validation fails.
+
+        Returns:
+            True if all keys are present and have truthy values.
+        """
+        missing = [k for k in keys if not data.get(k)]
+        if missing:
+            self._serve_json(
+                {"ok": False, "error": f"Missing required fields: {', '.join(missing)}"},
+                code=400,
+            )
+            return False
+        return True
 
     @staticmethod
     def _save_config(config) -> None:

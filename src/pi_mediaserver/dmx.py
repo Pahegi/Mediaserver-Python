@@ -16,13 +16,15 @@ DMX Protocol (13 channels starting at configured address):
     CH13 (offset 12) - Pan Y:         0=-1.0, 128=0, 255=+1.0
 """
 
-from __future__ import annotations
-
+import fcntl
 import logging
-import subprocess
+import socket
+import struct
 import threading
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import sacn
 
@@ -235,24 +237,34 @@ class Channellist:
 
 
 def _get_interface_ips() -> set[str]:
-    """Get IP addresses of up network interfaces (eth*, wlan*)."""
+    """Get IPv4 addresses of up network interfaces (eth*, wlan*).
+
+    Uses /sys/class/net to enumerate interfaces and SIOCGIFADDR ioctl
+    to read their IPv4 address. No subprocess required.
+    """
+    SIOCGIFADDR = 0x8915
     ips: set[str] = set()
     try:
-        result = subprocess.run(
-            ["ip", "-4", "-o", "addr", "show"],
-            capture_output=True, text=True, timeout=5
-        )
-        for line in result.stdout.strip().split("\n"):
-            if not line:
+        net_dir = Path("/sys/class/net")
+        for iface_path in net_dir.iterdir():
+            iface = iface_path.name
+            if not iface.startswith(("eth", "wlan")):
                 continue
-            parts = line.split()
-            if len(parts) >= 4:
-                iface = parts[1].rstrip(":")
-                if iface.startswith(("eth", "wlan")):
-                    for i, part in enumerate(parts):
-                        if part == "inet" and i + 1 < len(parts):
-                            ips.add(parts[i + 1].split("/")[0])
-                            break
+            # Check if interface is up
+            operstate = iface_path / "operstate"
+            if operstate.exists() and operstate.read_text().strip() not in ("up", "unknown"):
+                continue
+            # Read IPv4 address via ioctl
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    result = fcntl.ioctl(
+                        s.fileno(),
+                        SIOCGIFADDR,
+                        struct.pack("256s", iface.encode("utf-8")[:15]),
+                    )
+                ips.add(socket.inet_ntoa(result[20:24]))
+            except OSError:
+                continue
     except Exception:
         pass
     return ips
@@ -344,7 +356,7 @@ class DMXReceiver:
                 log.error("Availability callback error: %s", exc)
 
         @self._receiver.listen_on("universe", universe=self.universe)
-        def _on_packet(packet: sACNPacket) -> None:
+        def _on_packet(packet: "sACNPacket") -> None:
             try:
                 self.channellist.update(packet.dmxData)
                 has_changes = (
@@ -355,6 +367,15 @@ class DMXReceiver:
                     or self.channellist.video_effects_changed
                 )
                 if has_changes:
+                    log.debug(
+                        "DMX: file=%d folder=%d mode=%s changes: file=%s vol=%s mode=%s",
+                        self.channellist.file_index,
+                        self.channellist.folder_index,
+                        self.channellist.play_mode,
+                        self.channellist.file_changed,
+                        self.channellist.volume_changed,
+                        self.channellist.playmode_changed,
+                    )
                     self._last_change_time = time.monotonic()
                     if self._callback:
                         self._callback(self.channellist)

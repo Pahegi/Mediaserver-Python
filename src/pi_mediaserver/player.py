@@ -8,8 +8,7 @@ re-creates it and restores all cached state.
 Also supports NDI stream playback (optional, requires NDI SDK).
 """
 
-from __future__ import annotations
-
+import atexit
 import fcntl
 import json
 import logging
@@ -20,6 +19,7 @@ import socket
 import subprocess
 import threading
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import mpv
@@ -39,6 +39,29 @@ _MAX_ERRORS = 5
 _NDI_QUEUE_SIZE = 2
 
 
+@dataclass
+class PlayerState:
+    """Immutable snapshot of continuous player controls from DMX.
+
+    Used to decouple the DMX receiver from direct Player property access.
+    The Server builds a PlayerState from DMX channels and hands it to
+    player.apply_state() in a single call.
+    """
+
+    volume: int = 255
+    brightness: int = 255
+    contrast: int = 0
+    saturation: int = 0
+    gamma: int = 0
+    speed: float = 1.0
+    rotation: int = 0
+    zoom: float = 1.0
+    pan_x: float = 0.0
+    pan_y: float = 0.0
+    paused: bool = False
+    loop: bool = False
+
+
 class Player:
     """Media player wrapping mpv for low-latency video/audio/image playback."""
 
@@ -46,6 +69,7 @@ class Player:
         self._lock = threading.Lock()
         self._error_count: int = 0
         self._current_path: str = ""
+        self.osd_enabled: bool = False
         self._loop: bool = False
         self._paused: bool = False
         self._volume: int = 255
@@ -77,7 +101,15 @@ class Player:
         self._ndi_last_frame_time: float = 0.0
         self._ndi_watchdog_thread: threading.Thread | None = None
         self._ndi_watchdog_stop = threading.Event()
+        self._ndi_audio_ipc_path: str = ""
+        # NDI reconnect state
+        self._ndi_desired_source: str | None = None
+        self._ndi_reconnect_thread: threading.Thread | None = None
+        self._ndi_reconnect_stop = threading.Event()
         self._player: mpv.MPV = self._create_mpv()
+
+        # Register atexit handler to ensure DRM device is released on crash
+        atexit.register(self._atexit_cleanup)
 
     # ----- mpv lifecycle helpers -----
 
@@ -86,6 +118,11 @@ class Player:
         """Create and return a fresh mpv instance."""
         def _log(loglevel, component, message):
             if loglevel in ("error", "fatal"):
+                # Suppress harmless seek errors from FIFO-based NDI playback
+                if "seek" in message.lower() and "stream" in message.lower():
+                    return
+                if "force-seekable" in message:
+                    return
                 log.error("mpv/%s: %s", component, message)
 
         return mpv.MPV(
@@ -177,6 +214,41 @@ class Player:
         except Exception as exc:
             log.error("state restore failed: %s", exc)
 
+    def _atexit_cleanup(self) -> None:
+        """Last-resort cleanup registered via atexit.
+
+        Ensures the DRM device lock is released even if the process
+        exits abnormally (e.g. unhandled exception).
+        """
+        try:
+            self.stop_ndi()
+        except Exception:
+            pass
+        try:
+            self._player.terminate()
+        except Exception:
+            pass
+
+    def apply_state(self, state: PlayerState) -> None:
+        """Apply a complete player state snapshot in one call.
+
+        This is the primary interface for the DMX orchestrator to update
+        player controls, replacing individual property setters for
+        decoupled DMX→Player communication.
+        """
+        self.volume = state.volume
+        self.brightness = state.brightness
+        self.contrast = state.contrast
+        self.saturation = state.saturation
+        self.gamma = state.gamma
+        self.speed = state.speed
+        self.rotation = state.rotation
+        self.zoom = state.zoom
+        self.pan_x = state.pan_x
+        self.pan_y = state.pan_y
+        self.paused = state.paused
+        self.loop = state.loop
+
     # ----- Volume -----
 
     @property
@@ -204,16 +276,14 @@ class Player:
 
     def _set_ndi_audio_volume(self, mpv_vol: int) -> None:
         """Send volume command to NDI audio mpv subprocess via IPC socket."""
-        ipc_path = getattr(self, "_ndi_audio_ipc_path", None)
-        if not ipc_path or self._ndi_audio_process is None:
+        if not self._ndi_audio_ipc_path or self._ndi_audio_process is None:
             return
         try:
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.settimeout(0.2)
-            sock.connect(ipc_path)
-            cmd = json.dumps({"command": ["set_property", "volume", mpv_vol]}) + "\n"
-            sock.sendall(cmd.encode())
-            sock.close()
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.2)
+                sock.connect(self._ndi_audio_ipc_path)
+                cmd = json.dumps({"command": ["set_property", "volume", mpv_vol]}) + "\n"
+                sock.sendall(cmd.encode())
         except (OSError, ConnectionRefusedError):
             pass  # IPC not ready yet or process exiting — ignore
 
@@ -412,6 +482,8 @@ class Player:
             path: Absolute path to a media file, or a stream URL.
             loop: Whether to loop the file infinitely.
         """
+        # Cancel any NDI reconnect attempt
+        self._cancel_ndi_reconnect()
         # Stop NDI first if active
         if self._ndi_source or self._ndi_pipe_fd is not None:
             self.stop_ndi()
@@ -431,6 +503,8 @@ class Player:
 
     def stop(self) -> None:
         """Stop playback (mpv stays alive in idle mode)."""
+        # Cancel any NDI reconnect attempt
+        self._cancel_ndi_reconnect()
         # Stop NDI if active
         if self._ndi_source:
             self.stop_ndi()
@@ -486,13 +560,21 @@ class Player:
         except Exception:
             pass
 
+    def _ndi_osd(self, text: str, duration: float = 3.0) -> None:
+        """Show an OSD message only if OSD is enabled (config-controlled)."""
+        if self.osd_enabled:
+            self.show_osd(text, duration)
+
     def shutdown(self) -> None:
         """Terminate the mpv process cleanly."""
+        self._cancel_ndi_reconnect()
         self.stop_ndi()
         try:
             self._player.terminate()
         except Exception:
             pass
+        # Unregister atexit handler since we've shut down cleanly
+        atexit.unregister(self._atexit_cleanup)
         log.info("Player shut down")
 
     # ----- NDI Support -----
@@ -569,8 +651,14 @@ class Player:
             log.warning("NDI not available (SDK not installed)")
             return False
 
+        # Stop any existing reconnect thread (but don't clear desired source yet)
+        self._stop_ndi_reconnect_thread()
+
         # Stop any current playback (both regular and NDI)
         self.stop()
+
+        # Remember what we want to play (set AFTER stop, which clears it)
+        self._ndi_desired_source = source_name
 
         manager = get_manager()
 
@@ -594,12 +682,14 @@ class Player:
 
         if not manager.start_receiving(source_name, on_frame=probe_callback):
             log.error("Failed to connect to NDI source '%s'", source_name)
+            self._start_ndi_reconnect_on_failure(source_name)
             return False
 
         # Wait for first frame (max 3 seconds)
         if not first_frame["ready"].wait(timeout=3.0):
             log.error("Timeout waiting for NDI frames")
             manager.stop_receiving()
+            self._start_ndi_reconnect_on_failure(source_name)
             return False
 
         width = first_frame["width"]
@@ -613,7 +703,7 @@ class Player:
 
     def _start_ndi_pipeline(
         self,
-        manager: NDIManager,
+        manager: "NDIManager",
         source_name: str,
         width: int,
         height: int,
@@ -660,7 +750,7 @@ class Player:
             f"cache=no,"
             f"demuxer-max-bytes=16777216,"
             f"demuxer-readahead-secs=0,"
-            f"no-audio,"
+            f"audio=no,"
             f"framedrop=vo"
         )
         try:
@@ -746,11 +836,10 @@ class Player:
                 except queue.Full:
                     pass
 
-        # Disconnect handler: clean up when NDI source goes away
+        # Disconnect handler: clean up and start reconnect loop
         def on_disconnect() -> None:
-            log.warning("NDI source disconnected — stopping playback")
-            # Schedule cleanup on a separate thread to avoid blocking
-            threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
+            log.warning("NDI source disconnected")
+            threading.Thread(target=self._handle_ndi_disconnect, daemon=True, name="NDI-Reconnect-Trigger").start()
 
         # Audio callback: start audio mpv on first frame, then queue PCM data
         def on_audio(pcm_data: bytes, sample_rate: int, channels: int) -> None:
@@ -836,15 +925,15 @@ class Player:
 
     def _ndi_watchdog_loop(self) -> None:
         """Watchdog thread: detect when frames stop arriving and cleanup."""
-        TIMEOUT = 15.0  # seconds without frames before cleanup
+        TIMEOUT = 5.0  # seconds without frames before cleanup
         while not self._ndi_watchdog_stop.wait(timeout=1.0):
             if self._ndi_source is None:
                 break  # NDI stopped normally
             # Check frame timeout
             elapsed = time.time() - self._ndi_last_frame_time
             if elapsed > TIMEOUT:
-                log.warning("NDI frame timeout (%.1fs) — stopping playback", elapsed)
-                threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
+                log.warning("NDI frame timeout (%.1fs) — triggering reconnect", elapsed)
+                threading.Thread(target=self._handle_ndi_disconnect, daemon=True, name="NDI-Reconnect-Trigger").start()
                 break
         log.debug("NDI watchdog stopped")
 
@@ -869,7 +958,7 @@ class Player:
             log.info("NDI FIFO opened for writing: %s", self._ndi_fifo_path)
         except OSError as exc:
             log.error("Failed to open FIFO for writing: %s", exc)
-            threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
+            threading.Thread(target=self._handle_ndi_disconnect, daemon=True, name="NDI-Reconnect-Trigger").start()
             return
 
         while not self._ndi_writer_stop.is_set():
@@ -911,8 +1000,8 @@ class Player:
                 self._ndi_last_frame_time = now
 
             except (BrokenPipeError, OSError) as exc:
-                log.warning("NDI FIFO broken (%s) — stopping", exc)
-                threading.Thread(target=self.stop_ndi, daemon=True, name="NDI-Cleanup").start()
+                log.warning("NDI FIFO broken (%s) — triggering reconnect", exc)
+                threading.Thread(target=self._handle_ndi_disconnect, daemon=True, name="NDI-Reconnect-Trigger").start()
                 break
 
     def _ndi_audio_writer_loop(self) -> None:
@@ -958,7 +1047,7 @@ class Player:
 
     def _restart_ndi_pipeline(
         self,
-        manager: NDIManager,
+        manager: "NDIManager",
         source_name: str,
         width: int,
         height: int,
@@ -1045,3 +1134,164 @@ class Player:
         self._mpv_cmd("stop")
 
         log.info("NDI playback stopped")
+
+    # ----- NDI Reconnect -----
+
+    def _cancel_ndi_reconnect(self) -> None:
+        """Cancel any pending NDI reconnect and clear the desired source."""
+        self._ndi_desired_source = None
+        self._stop_ndi_reconnect_thread()
+
+    def _stop_ndi_reconnect_thread(self) -> None:
+        """Stop the reconnect thread if running (keeps desired source)."""
+        self._ndi_reconnect_stop.set()
+        t = self._ndi_reconnect_thread
+        if t is not None and t.is_alive() and t is not threading.current_thread():
+            t.join(timeout=5.0)
+        self._ndi_reconnect_thread = None
+
+    @property
+    def ndi_reconnecting(self) -> str | None:
+        """Name of the NDI source we're trying to reconnect to, or None."""
+        if self._ndi_desired_source and self._ndi_source is None:
+            t = self._ndi_reconnect_thread
+            if t is not None and t.is_alive():
+                return self._ndi_desired_source
+        return None
+
+    def _start_ndi_reconnect_on_failure(self, source_name: str) -> None:
+        """Start the reconnect loop after an initial connection failure."""
+        if self._ndi_desired_source != source_name:
+            return  # Something else cancelled us
+        log.info("NDI initial connection failed — will auto-reconnect '%s'", source_name)
+        self._ndi_osd(f"NDI Source Not Ready: {source_name}", duration=3.0)
+
+        if self._ndi_reconnect_thread is not None and self._ndi_reconnect_thread.is_alive():
+            return
+
+        self._ndi_reconnect_stop.clear()
+        self._ndi_reconnect_thread = threading.Thread(
+            target=self._ndi_reconnect_loop,
+            daemon=True,
+            name="NDI-Reconnect",
+        )
+        self._ndi_reconnect_thread.start()
+
+    def _handle_ndi_disconnect(self) -> None:
+        """Handle NDI source disconnection: clean up and start reconnect loop."""
+        source_name = self._ndi_source or self._ndi_desired_source
+        if not source_name:
+            return
+
+        log.warning("NDI disconnect detected for '%s' — will auto-reconnect", source_name)
+        self._ndi_desired_source = source_name
+
+        # Clean up the broken pipeline
+        self.stop_ndi()
+
+        self._ndi_osd(f"NDI Disconnected: {source_name}", duration=3.0)
+
+        # Only start reconnect if there isn't one already running
+        if self._ndi_reconnect_thread is not None and self._ndi_reconnect_thread.is_alive():
+            return
+
+        self._ndi_reconnect_stop.clear()
+        self._ndi_reconnect_thread = threading.Thread(
+            target=self._ndi_reconnect_loop,
+            daemon=True,
+            name="NDI-Reconnect",
+        )
+        self._ndi_reconnect_thread.start()
+
+    def _ndi_reconnect_loop(self) -> None:
+        """Background loop: poll for NDI source and reconnect when available."""
+        source_name = self._ndi_desired_source
+        if not source_name:
+            return
+
+        manager = get_manager()
+        attempt = 0
+        log.info("NDI auto-reconnect started for '%s'", source_name)
+
+        while not self._ndi_reconnect_stop.wait(timeout=3.0):
+            # Check if we still want this source
+            if self._ndi_desired_source != source_name:
+                log.info("NDI reconnect: desired source changed, exiting")
+                break
+
+            # Safety: if somehow we're already playing, stop
+            if self._ndi_source is not None:
+                break
+
+            attempt += 1
+
+            # Check if the source is discovered
+            sources = self.get_ndi_sources()
+            if not any(s.name == source_name for s in sources):
+                if attempt == 1 or attempt % 10 == 0:
+                    log.info(
+                        "NDI reconnect: '%s' not found (attempt %d)",
+                        source_name, attempt,
+                    )
+                if attempt % 5 == 0:
+                    self._ndi_osd("NDI Source Lost — Waiting...", duration=2.0)
+                continue
+
+            # Source found — attempt connection
+            log.info(
+                "NDI reconnect: '%s' discovered, connecting (attempt %d)",
+                source_name, attempt,
+            )
+            self._ndi_osd("NDI Reconnecting...", duration=2.0)
+
+            try:
+                success = self._try_ndi_reconnect(manager, source_name)
+                if success:
+                    log.info("NDI reconnect: successfully reconnected to '%s'", source_name)
+                    self._ndi_osd(f"NDI Reconnected: {source_name}", duration=3.0)
+                    return  # Thread exits naturally
+                log.warning("NDI reconnect: connection attempt %d failed, will retry", attempt)
+            except Exception as exc:
+                log.error("NDI reconnect error: %s", exc)
+                try:
+                    manager.stop_receiving()
+                except Exception:
+                    pass
+
+        log.info("NDI reconnect loop ended for '%s'", source_name)
+
+    def _try_ndi_reconnect(self, manager: "NDIManager", source_name: str) -> bool:
+        """Single reconnect attempt — probe resolution and start pipeline.
+
+        Returns True if the pipeline started successfully.
+        """
+        # Try cached resolution first
+        cached = manager.get_source_resolution(source_name)
+        if cached:
+            width, height = cached
+            log.info("NDI reconnect: cached resolution %dx%d", width, height)
+            return self._start_ndi_pipeline(manager, source_name, width, height)
+
+        # Probe resolution from live frames
+        first_frame: dict = {"width": 0, "height": 0, "ready": threading.Event()}
+
+        def probe_cb(data: bytes, w: int, h: int) -> None:
+            if not first_frame["ready"].is_set():
+                first_frame["width"] = w
+                first_frame["height"] = h
+                first_frame["ready"].set()
+
+        if not manager.start_receiving(source_name, on_frame=probe_cb):
+            log.warning("NDI reconnect: start_receiving failed")
+            return False
+
+        if not first_frame["ready"].wait(timeout=3.0):
+            log.warning("NDI reconnect: timeout probing resolution")
+            manager.stop_receiving()
+            return False
+
+        width, height = first_frame["width"], first_frame["height"]
+        log.info("NDI reconnect: probed resolution %dx%d", width, height)
+        return self._start_ndi_pipeline(
+            manager, source_name, width, height, already_connected=True,
+        )

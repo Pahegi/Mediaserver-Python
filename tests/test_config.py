@@ -37,3 +37,26 @@ def test_load_config_valid(tmp_path):
     assert cfg.universe == 3
     assert cfg.mediapath == "/tmp/media/"
     assert cfg.web_port == 9090
+
+
+def test_config_post_init_validation():
+    """__post_init__ should clamp and normalise values."""
+    cfg = Config(address=0, universe=0, web_port=99999, dmx_fail_mode="invalid",
+                 ndi_bandwidth="bogus", mediapath="/no/trailing")
+    assert cfg.address == 1  # clamped to min 1
+    assert cfg.universe == 1  # clamped to min 1
+    assert cfg.web_port == 65535  # clamped to max
+    assert cfg.dmx_fail_mode == "hold"  # fallback
+    assert cfg.ndi_bandwidth == "lowest"  # fallback
+    assert cfg.mediapath.endswith("/")  # trailing slash added
+
+
+def test_config_post_init_accepts_valid():
+    """__post_init__ should not alter valid values."""
+    cfg = Config(address=42, universe=100, web_port=3000,
+                 dmx_fail_mode="blackout", ndi_bandwidth="highest")
+    assert cfg.address == 42
+    assert cfg.universe == 100
+    assert cfg.web_port == 3000
+    assert cfg.dmx_fail_mode == "blackout"
+    assert cfg.ndi_bandwidth == "highest"

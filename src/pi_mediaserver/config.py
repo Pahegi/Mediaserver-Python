@@ -2,10 +2,14 @@
 
 import configparser
 import logging
-import os
 from dataclasses import dataclass
+from pathlib import Path
 
 log = logging.getLogger(__name__)
+
+
+_VALID_FAIL_MODES = ("hold", "blackout")
+_VALID_BANDWIDTHS = ("lowest", "highest")
 
 
 @dataclass
@@ -19,6 +23,18 @@ class Config:
     dmx_fail_mode: str = "hold"
     dmx_fail_osd: bool = True
     ndi_bandwidth: str = "lowest"
+
+    def __post_init__(self) -> None:
+        """Validate and normalise field values."""
+        self.address = max(1, min(512, self.address))
+        self.universe = max(1, min(63999, self.universe))
+        self.web_port = max(1, min(65535, self.web_port))
+        if self.dmx_fail_mode not in _VALID_FAIL_MODES:
+            self.dmx_fail_mode = "hold"
+        if self.ndi_bandwidth not in _VALID_BANDWIDTHS:
+            self.ndi_bandwidth = "lowest"
+        if not self.mediapath.endswith("/"):
+            self.mediapath += "/"
 
     @property
     def dmx_label(self) -> str:
@@ -41,38 +57,50 @@ def load_config(configpath: str = "/home/pi/config.txt") -> Config:
         [Web]
         Port = 8080
     """
-    config = Config()
+    defaults = Config()
+    path = Path(configpath)
+
+    if not path.is_file():
+        log.info("Config file '%s' not found, using defaults (%s)", configpath, defaults.dmx_label)
+        return defaults
+
     parser = configparser.ConfigParser()
-
-    if not os.path.isfile(configpath):
-        log.info("Config file '%s' not found, using defaults (%s)", configpath, config.dmx_label)
-        return config
-
     try:
         parser.read(configpath)
-        section = "DMX"
-        if parser.has_section(section):
-            config.address = parser.getint(section, "Address", fallback=config.address)
-            config.universe = parser.getint(section, "Universe", fallback=config.universe)
-            config.mediapath = parser.get(section, "MediaPath", fallback=config.mediapath)
-            config.dmx_fail_mode = parser.get(section, "FailMode", fallback=config.dmx_fail_mode)
-            if config.dmx_fail_mode not in ("hold", "blackout"):
-                config.dmx_fail_mode = "hold"
-            config.dmx_fail_osd = parser.getboolean(section, "FailOSD", fallback=config.dmx_fail_osd)
-            # Ensure mediapath ends with /
-            if not config.mediapath.endswith("/"):
-                config.mediapath += "/"
-        web_section = "Web"
-        if parser.has_section(web_section):
-            config.web_port = parser.getint(web_section, "Port", fallback=config.web_port)
-        ndi_section = "NDI"
-        if parser.has_section(ndi_section):
-            config.ndi_bandwidth = parser.get(ndi_section, "Bandwidth", fallback=config.ndi_bandwidth)
-            if config.ndi_bandwidth not in ("lowest", "highest"):
-                config.ndi_bandwidth = "lowest"
+
+        address = defaults.address
+        universe = defaults.universe
+        mediapath = defaults.mediapath
+        dmx_fail_mode = defaults.dmx_fail_mode
+        dmx_fail_osd = defaults.dmx_fail_osd
+        web_port = defaults.web_port
+        ndi_bandwidth = defaults.ndi_bandwidth
+
+        if parser.has_section("DMX"):
+            address = parser.getint("DMX", "Address", fallback=address)
+            universe = parser.getint("DMX", "Universe", fallback=universe)
+            mediapath = parser.get("DMX", "MediaPath", fallback=mediapath)
+            dmx_fail_mode = parser.get("DMX", "FailMode", fallback=dmx_fail_mode)
+            dmx_fail_osd = parser.getboolean("DMX", "FailOSD", fallback=dmx_fail_osd)
+
+        if parser.has_section("Web"):
+            web_port = parser.getint("Web", "Port", fallback=web_port)
+
+        if parser.has_section("NDI"):
+            ndi_bandwidth = parser.get("NDI", "Bandwidth", fallback=ndi_bandwidth)
+
+        config = Config(
+            address=address,
+            universe=universe,
+            mediapath=mediapath,
+            web_port=web_port,
+            dmx_fail_mode=dmx_fail_mode,
+            dmx_fail_osd=dmx_fail_osd,
+            ndi_bandwidth=ndi_bandwidth,
+        )
         log.info("Loaded config from '%s': address %s", configpath, config.dmx_label)
+        return config
     except Exception as e:
         log.error("Error reading config: %s", e)
-        log.info("Using defaults (%s)", config.dmx_label)
-
-    return config
+        log.info("Using defaults (%s)", defaults.dmx_label)
+        return defaults

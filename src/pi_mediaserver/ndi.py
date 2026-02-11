@@ -16,15 +16,13 @@ Usage:
         manager.start_receiving("STUDIO-PC (OBS)", output_pipe="/tmp/ndi_video")
 """
 
-from __future__ import annotations
-
 import ctypes
 import logging
-import os
 import threading
 import time
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable
 
 log = logging.getLogger(__name__)
 
@@ -43,10 +41,10 @@ _NDI_LIB_PATHS = [
 
 def _load_ndi_library() -> ctypes.CDLL | None:
     """Try to load the NDI shared library."""
-    for path in _NDI_LIB_PATHS:
-        if os.path.exists(path):
+    for lib_path in _NDI_LIB_PATHS:
+        if Path(lib_path).exists():
             try:
-                return ctypes.CDLL(path)
+                return ctypes.CDLL(lib_path)
             except OSError:
                 continue
     return None
@@ -301,24 +299,17 @@ if NDI_AVAILABLE and _ndi_lib is not None:
 # ============================================================================
 
 
+@dataclass
 class NDISourceInfo:
     """Information about a discovered NDI source, including probed resolution."""
 
-    __slots__ = ("name", "width", "height", "probed")
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.width: int = 0
-        self.height: int = 0
-        self.probed: bool = False
+    name: str
+    width: int = 0
+    height: int = 0
+    probed: bool = False
 
     def to_dict(self) -> dict:
-        return {
-            "name": self.name,
-            "width": self.width,
-            "height": self.height,
-            "probed": self.probed,
-        }
+        return asdict(self)
 
 
 # ============================================================================
@@ -763,7 +754,11 @@ class NDIManager:
                             row_bytes = video_frame.xres * 4  # BGRA
                             h = video_frame.yres
 
-                            if stride == row_bytes:
+                            # Sanity check dimensions to prevent runaway allocations
+                            if row_bytes <= 0 or h <= 0 or stride <= 0 or h > 8192:
+                                log.warning("NDI frame %d: bad dimensions %dx%d stride=%d",
+                                            frames_received, video_frame.xres, h, stride)
+                            elif stride == row_bytes:
                                 # No padding — fast path
                                 frame_data = ctypes.string_at(
                                     video_frame.p_data, row_bytes * h
@@ -868,6 +863,9 @@ class NDIManager:
                     # Unknown frame type
                     log.warning("NDI unknown frame type: %d", frame_type)
 
+            except (OSError, ctypes.ArgumentError, ValueError) as exc:
+                log.error("NDI receive error (ctypes): %s", exc)
+                time.sleep(0.1)
             except Exception as exc:
                 log.error("NDI receive error: %s", exc)
                 time.sleep(0.1)
@@ -888,12 +886,20 @@ class NDIManager:
             self._receive_thread = None
             log.debug("NDI receiver: thread joined")
 
-        # Now safe to destroy receiver (thread has exited)
-        if self._receiver and _ndi_lib:
-            log.debug("NDI receiver: destroying receiver")
-            _ndi_lib.NDIlib_recv_destroy(self._receiver)
-            self._receiver = None
-            log.debug("NDI receiver: destroyed")
+        # Destroy receiver on a background thread — NDIlib_recv_destroy can
+        # block for 10-20 s while the SDK drains its network buffers.
+        recv = self._receiver
+        self._receiver = None
+        self._ndi_destroy_done = threading.Event()
+        if recv and _ndi_lib:
+            def _destroy() -> None:
+                log.debug("NDI receiver: destroying receiver (background)")
+                _ndi_lib.NDIlib_recv_destroy(recv)
+                log.debug("NDI receiver: destroyed")
+                self._ndi_destroy_done.set()
+            threading.Thread(target=_destroy, daemon=True, name="NDI-Destroy").start()
+        else:
+            self._ndi_destroy_done.set()
 
         # Clear callbacks last
         self._current_source = None
@@ -917,6 +923,10 @@ class NDIManager:
     def shutdown(self) -> None:
         """Shutdown NDI manager and release resources."""
         self.stop_receiving()
+        # Wait for the background receiver destroy to finish before
+        # tearing down the NDI library itself.
+        if hasattr(self, "_ndi_destroy_done"):
+            self._ndi_destroy_done.wait(timeout=30.0)
         self.stop_discovery()
 
         if self._initialized and _ndi_lib:
